@@ -1,7 +1,10 @@
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Asset } from 'expo-asset';
+// Initialise the Database 
 
+// Copy the database from Assets folder to sqlite folder (internal)
+// Testing whether the sqlite db is there or not!
 let db: SQLite.SQLiteDatabase | null = null;
 
 export const initDatabase = async () => {
