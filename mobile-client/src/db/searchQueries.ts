@@ -18,7 +18,7 @@ export const searchRoutesByNumber = async (db: SQLiteDatabase, searchTerm: strin
     SELECT route_id, route_short_name 
     FROM routes 
     WHERE route_short_name LIKE ? 
-    LIMIT 20;
+    LIMIT 10;
   `;
 
   try {

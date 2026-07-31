@@ -8,7 +8,7 @@ interface SearchState {
   results: Route[];
   isSearching: boolean;
   setSearchTerm: (term: string) => void;
-  executeSearch: (db: SQLiteDatabase, term: string) => Promise<void>;
+  executeSearch: (db: SQLiteDatabase | null, term: string) => Promise<void>;
 }
 
 // Create the Zustand store
@@ -24,6 +24,11 @@ export const useSearchStore = create<SearchState>((set) => ({
   executeSearch: async (db, term) => {
     // If the input is cleared, reset the UI immediately
     if (term.trim() === '') {
+      set({ results: [], isSearching: false });
+      return;
+    }
+
+    if (!db) {
       set({ results: [], isSearching: false });
       return;
     }
