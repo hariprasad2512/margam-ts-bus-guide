@@ -1,25 +1,55 @@
 import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Asset } from 'expo-asset';
 
-// We open the database synchronously. 
-// Expo automatically looks for this exact filename in your assets/ folder.
-const db = SQLite.openDatabaseSync('tgsrtc.db');
+let db: SQLite.SQLiteDatabase | null = null;
 
-export const getDbConnection = () => {
+export const initDatabase = async () => {
+  if (db) return db;
+
+  const dbName = 'tgsrtc.db';
+  const dbAsset = require('../../assets/tgsrtc.db');
+
+  const dbDirectory = `${FileSystem.documentDirectory}SQLite`;
+  const dbPath = `${dbDirectory}/${dbName}`;
+
+  // 1. Ensure the SQLite directory exists
+  const dirInfo = await FileSystem.getInfoAsync(dbDirectory);
+  if (!dirInfo.exists) {
+    await FileSystem.makeDirectoryAsync(dbDirectory, { intermediates: true });
+  }
+
+  // 2. Check if the database file is already present
+  const fileInfo = await FileSystem.getInfoAsync(dbPath);
+
+  // If it doesn't exist or is empty (0 bytes), copy the bundled asset
+  if (!fileInfo.exists || fileInfo.size === 0) {
+    const asset = Asset.fromModule(dbAsset);
+    await asset.downloadAsync();
+
+    const sourceUri = asset.localUri || asset.uri;
+
+    await FileSystem.copyAsync({
+      from: sourceUri,
+      to: dbPath,
+    });
+    console.log('Pre-populated database successfully copied to SQLite directory.');
+  }
+
+  // 3. Open database synchronously using the default dbName
+  db = SQLite.openDatabaseSync(dbPath);
   return db;
 };
 
-// Example wrapper function for testing our connection later
-export const testQuery = () => {
+export const testQuery = async () => {
   try {
+    const database = await initDatabase();
 
-    
-    // A simple query to grab the first 5 routes to ensure it works
-    const result = db.getAllSync('SELECT * FROM routes LIMIT 5;');
-    console.log("Database connected successfully. Sample routes:", result);
+    const result = database.getAllSync('SELECT * FROM routes LIMIT 5;');
+    console.log('Database connected successfully! Sample routes: \n', result);
     return result;
   } catch (error) {
-    console.error("Database connection failed:", error);
+    console.error('Database query failed:', error);
     return null;
   }
 };
-
