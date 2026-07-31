@@ -1,0 +1,52 @@
+# ==========================================
+# Global: OS & IDE Files
+# ==========================================
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==========================================
+# Phase 1: Data Pipeline (Python)
+# ==========================================
+# Python virtual environments
+data-pipeline/venv/
+data-pipeline/env/
+data-pipeline/.env/
+
+# Python cache and compiled files
+data-pipeline/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Raw Open Data (Too large for Git, download locally)
+data-pipeline/raw_data/
+*.zip
+data-pipeline/*.txt
+data-pipeline/*.csv
+
+# ==========================================
+# Phase 2: Mobile Client (React Native / Expo)
+# ==========================================
+# Node modules and dependencies
+mobile-client/node_modules/
+mobile-client/npm-debug.log
+mobile-client/yarn-error.log
+mobile-client/yarn.lock
+mobile-client/package-lock.json
+
+# Expo specific folders
+mobile-client/.expo/
+mobile-client/dist/
+mobile-client/web-build/
+
+# Native OS folders (if you ever use custom dev clients)
+mobile-client/android/
+mobile-client/ios/
+
+# Environment Variables (Keep your secrets safe!)
+.env
+.env.local
+.env.*
