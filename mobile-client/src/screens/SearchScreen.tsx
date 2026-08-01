@@ -10,17 +10,25 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SQLiteDatabase } from 'expo-sqlite';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/AppNavigator';
+
 import { useSearchStore } from '../store/useSearchStore';
 import { 
   Route, 
+  RouteResult,
   getRoutesBetweenStops, 
-  getTripTimeline,
   searchStopsQuery,
   StopResult 
 } from '../db/searchQueries';
 import { initDatabase } from '../db/database';
 
+// Type our navigation prop
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Search'>;
+
 export default function SearchScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
 
   // Local state for the Auto-Suggest Dropdowns
@@ -29,16 +37,14 @@ export default function SearchScreen() {
   const [fromSuggestions, setFromSuggestions] = useState<StopResult[]>([]);
   const [toSuggestions, setToSuggestions] = useState<StopResult[]>([]);
 
-  // Destructure exact Zustand state
+  // Destructure exact Zustand state (removed timeline getters as they moved to other screens)
   const {
     fromStop,
     toStop,
-    connectingRoutes,
-    selectedTripTimeline,
     setFromStop,
     setToStop,
+    connectingRoutes,
     setConnectingRoutes,
-    setSelectedTripTimeline,
     searchTerm,
     results,
     isSearching,
@@ -59,11 +65,11 @@ export default function SearchScreen() {
   // --- Auto-Suggest Logic for "From" Stop ---
   const handleFromChange = async (text: string) => {
     setFromSearchText(text);
-    if (fromStop) setFromStop(null); // Clear selected stop if user edits text
+    if (fromStop) setFromStop(null);
     
     if (text.trim().length > 1 && db) {
       try {
-        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [`%${text}%`]);
+        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [`%${text}%`, text]);
         setFromSuggestions(res);
       } catch (e) {
         console.error(e);
@@ -86,7 +92,7 @@ export default function SearchScreen() {
     
     if (text.trim().length > 1 && db) {
       try {
-        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [`%${text}%`]);
+        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [`%${text}%`, text]);
         setToSuggestions(res);
       } catch (e) {
         console.error(e);
@@ -108,42 +114,79 @@ export default function SearchScreen() {
     if (db) executeSearch(db, text);
   };
 
-  // Check connecting buses logic
+  // --- Execute Multi-Stop Route Search & Navigate ---
   const handleCheckBuses = async () => {
     if (!fromStop?.stop_id || !toStop?.stop_id || !db) {
-      console.warn("Please select valid stops from the dropdown.");
+      console.warn('Please select valid stops from the dropdown.');
       return;
     }
+
     try {
-      const routes = await db.getAllAsync(getRoutesBetweenStops, [
-        fromStop.stop_id,
-        toStop.stop_id,
-      ]);
-      setConnectingRoutes(routes as any);
+      const fromStopId = fromStop.stop_id.trim();
+      const toStopId = toStop.stop_id.trim();
+
+      const tryRouteLookup = async (originId: string, destinationId: string) => {
+        const routes = await db.getAllAsync<RouteResult>(getRoutesBetweenStops, [
+          originId,
+          destinationId,
+          destinationId,
+          originId,
+        ]);
+        return routes;
+      };
+
+      let routes = await tryRouteLookup(fromStopId, toStopId);
+
+      if (routes.length === 0) {
+        const fromCandidates = await db.getAllAsync<{ stop_id: string }>(
+          'SELECT stop_id FROM stops WHERE stop_name = ? ORDER BY stop_id',
+          [fromStop.stop_name]
+        );
+        const toCandidates = await db.getAllAsync<{ stop_id: string }>(
+          'SELECT stop_id FROM stops WHERE stop_name = ? ORDER BY stop_id',
+          [toStop.stop_name]
+        );
+
+        const candidateFromIds = Array.from(new Set([fromStopId, ...fromCandidates.map((item) => item.stop_id)]));
+        const candidateToIds = Array.from(new Set([toStopId, ...toCandidates.map((item) => item.stop_id)]));
+
+        for (const candidateFromId of candidateFromIds) {
+          for (const candidateToId of candidateToIds) {
+            if (candidateFromId === candidateToId) continue;
+            const fallbackRoutes = await tryRouteLookup(candidateFromId, candidateToId);
+            if (fallbackRoutes.length > 0) {
+              routes = fallbackRoutes;
+              break;
+            }
+          }
+          if (routes.length > 0) break;
+        }
+      }
+
+      const uniqueRoutes = routes.reduce<RouteResult[]>((acc, route) => {
+        const key = `${route.route_short_name}::${route.trip_id}`;
+        if (!acc.some((item) => `${item.route_short_name}::${item.trip_id}` === key)) {
+          acc.push(route);
+        }
+        return acc;
+      }, []);
+
+      console.log(`Found ${uniqueRoutes.length} direct buses!`);
+      setConnectingRoutes(uniqueRoutes);
       navigation.navigate('RouteResults');
-      
     } catch (error) {
       console.error('Error finding routes:', error);
     }
   };
 
-  const handleSelectTrip = async (tripId: string) => {
-    if (!db) return;
-    try {
-      const timeline = await db.getAllAsync(getTripTimeline, [tripId]);
-      setSelectedTripTimeline(timeline as any);
-    } catch (error) {
-      console.error('Error fetching timeline:', error);
-    }
-  };
-
-  // NEW: Updated Route Item Renderer matching suggestion styles
+  // Render direct bus result item using unified clean styling
   const renderRouteItem = ({ item }: { item: Route }) => (
     <TouchableOpacity 
       style={styles.suggestionItem} 
       activeOpacity={0.7}
-      // Assuming you might add a navigation action later:
-      onPress={() => console.log('Selected direct route:', item.route_short_name)}
+      onPress={() => {console.log('Selected direct route:', item.route_short_name);
+        navigation.navigate('TripTimeline');
+      }}
     >
        <Text style={styles.suggestionText}>🚌  Route {item.route_short_name}</Text>
     </TouchableOpacity>
@@ -230,39 +273,6 @@ export default function SearchScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Connecting Buses Results */}
-            {connectingRoutes.length > 0 && (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Available Buses</Text>
-                <View style={styles.badgeContainer}>
-                  {connectingRoutes.map((item, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.routeBadge}
-                      onPress={() => handleSelectTrip(item.trip_id)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.routeBadgeText}>{item.route_short_name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Selected Route Timeline */}
-            {selectedTripTimeline.length > 0 && (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Route Timeline</Text>
-                {selectedTripTimeline.map((stop, idx) => (
-                  <View key={idx} style={styles.timelineItem}>
-                    <View style={styles.timelineDot} />
-                    <Text style={styles.timelineText}>{stop.stop_name}</Text>
-                    <Text style={styles.timelineTime}>{stop.arrival_time}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
             <View style={styles.divider} />
 
             {/* 2. Secondary: Search Route by Number */}
@@ -321,14 +331,11 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#E9ECEF', overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, elevation: 4,
   },
-  
-  // NOTE: Reusing this single clean style for BOTH "From/To" suggestions and the direct "Route Number" search results
   suggestionItem: {
     paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F8F9FA',
-    backgroundColor: '#FFFFFF', // Added so FlatList items don't have transparent backgrounds
+    backgroundColor: '#FFFFFF', 
   },
-  suggestionText: { fontSize: 15, color: '#343A40', fontWeight: '500' }, // Bumped font slightly for readability
-  
+  suggestionText: { fontSize: 15, color: '#343A40', fontWeight: '500' },
   button: {
     backgroundColor: '#0066FF', borderRadius: 12, height: 50, justifyContent: 'center',
     alignItems: 'center', marginTop: 14,
@@ -336,20 +343,5 @@ const styles = StyleSheet.create({
   buttonDisabled: { backgroundColor: '#A0C4FF' }, 
   buttonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
   divider: { height: 1, backgroundColor: '#E9ECEF', marginVertical: 8 },
-  badgeContainer: { flexDirection: 'row', flexWrap: 'wrap' },
-  routeBadge: {
-    backgroundColor: '#E7F0FF', paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 10, marginRight: 8, marginBottom: 8,
-  },
-  routeBadgeText: { color: '#0066FF', fontWeight: '700', fontSize: 15 },
-  timelineItem: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
-    borderBottomWidth: 1, borderBottomColor: '#F8F9FA',
-  },
-  timelineDot: {
-    width: 10, height: 10, borderRadius: 5, backgroundColor: '#0066FF', marginRight: 12,
-  },
-  timelineText: { flex: 1, fontSize: 14, color: '#343A40', fontWeight: '600' },
-  timelineTime: { fontSize: 13, color: '#6C757D', fontWeight: '500' },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 15, color: '#888888', fontWeight: '500' },
 });

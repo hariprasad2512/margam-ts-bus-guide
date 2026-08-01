@@ -8,6 +8,7 @@ import { SQLiteDatabase } from 'expo-sqlite';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useSearchStore } from '../store/useSearchStore';
 import { getTripTimeline } from '../db/searchQueries';
+import { initDatabase } from '../db/database';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RouteResults'>;
 
@@ -17,6 +18,16 @@ export default function RouteResultsScreen() {
   
   const { fromStop, toStop, connectingRoutes, setSelectedTripTimeline, isSearching, } = useSearchStore();
 
+  useEffect(() => {
+    let isMounted = true;
+    initDatabase()
+      .then((database) => {
+        if (isMounted) setDb(database);
+      })
+      .catch((error) => console.error('Failed to init DB:', error));
+    return () => { isMounted = false; };
+  }, []);
+  
   const handleSelectTrip = async (tripId: string) => {
     // setIsLoading(true); // Assuming you add setIsLoading to your store
     try {

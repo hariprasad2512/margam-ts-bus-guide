@@ -32,9 +32,10 @@ export const searchRoutesByNumber = async (db: SQLiteDatabase, searchTerm: strin
   // We use the LIKE operator for autocomplete functionality
   // LIMIT 20 ensures the UI doesn't choke on massive lists
   const query = `
-    SELECT route_id, route_short_name 
-    FROM routes 
-    WHERE route_short_name LIKE ? 
+    SELECT DISTINCT route_id, route_short_name
+    FROM routes
+    WHERE route_short_name LIKE ?
+    ORDER BY route_short_name
     LIMIT 10;
   `;
 
@@ -68,25 +69,30 @@ export interface StopResult {
   stop_name: string;
 }
 
-// 1. Fix Stop Autocomplete Duplicates
+// 1. Stop autocomplete: surface the most relevant stop matches first
 export const searchStopsQuery = `
-  SELECT MIN(stop_id) as stop_id, stop_name 
-  FROM stops 
-  WHERE stop_name LIKE ? 
+  SELECT MIN(stop_id) as stop_id, stop_name
+  FROM stops
+  WHERE lower(stop_name) LIKE lower(?)
   GROUP BY stop_name
+  ORDER BY CASE
+    WHEN lower(stop_name) = lower(?) THEN 0
+    ELSE 1
+  END, stop_name
   LIMIT 8;
 `;
 
 // The FROM/TO Routing Query
 export const getRoutesBetweenStops = `
-  SELECT r.route_short_name, MIN(t.trip_id) as trip_id
+  SELECT DISTINCT r.route_short_name, t.trip_id
   FROM routes r
   JOIN trips t ON r.route_id = t.route_id
   JOIN stop_times st1 ON t.trip_id = st1.trip_id
-  JOIN stops s1 ON st1.stop_id = s1.stop_id
   JOIN stop_times st2 ON t.trip_id = st2.trip_id
-  JOIN stops s2 ON st2.stop_id = s2.stop_id
-  WHERE s1.stop_id = ? AND s2.stop_id = ? 
-  AND st1.stop_sequence < st2.stop_sequence
-  GROUP BY r.route_short_name;
+  WHERE (
+    (st1.stop_id = ? AND st2.stop_id = ?)
+    OR
+    (st1.stop_id = ? AND st2.stop_id = ?)
+  )
+  AND st1.stop_sequence <> st2.stop_sequence;
 `;
