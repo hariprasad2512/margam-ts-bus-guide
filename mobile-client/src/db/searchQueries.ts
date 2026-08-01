@@ -6,6 +6,23 @@ export interface Route {
   route_short_name: string;
 }
 
+// SCHEMA for Result coming on a particular Route
+export interface RouteResult {
+  route_short_name: string;
+  trip_id: string;
+}
+
+// Arrange the Stops according to the stop_sequence
+export interface TimelineStop {
+  stop_name: string;
+  arrival_time: string;
+  stop_sequence: number;
+}
+
+
+
+
+// SEARCH ROUTES BY NUMBER
 // The core search function
 export const searchRoutesByNumber = async (db: SQLiteDatabase, searchTerm: string): Promise<Route[]> => {
   if (!searchTerm || searchTerm.trim() === '') {
@@ -33,3 +50,43 @@ export const searchRoutesByNumber = async (db: SQLiteDatabase, searchTerm: strin
     return [];
   }
 };
+
+
+
+// 3. The Timeline Query for a specific trip
+export const getTripTimeline = `
+  SELECT s.stop_name, st.arrival_time, st.stop_sequence
+  FROM stop_times st
+  JOIN stops s ON st.stop_id = s.stop_id
+  WHERE st.trip_id = ?
+  ORDER BY st.stop_sequence ASC;
+`;
+
+
+export interface StopResult {
+  stop_id: string;
+  stop_name: string;
+}
+
+// 1. Fix Stop Autocomplete Duplicates
+export const searchStopsQuery = `
+  SELECT MIN(stop_id) as stop_id, stop_name 
+  FROM stops 
+  WHERE stop_name LIKE ? 
+  GROUP BY stop_name
+  LIMIT 8;
+`;
+
+// The FROM/TO Routing Query
+export const getRoutesBetweenStops = `
+  SELECT r.route_short_name, MIN(t.trip_id) as trip_id
+  FROM routes r
+  JOIN trips t ON r.route_id = t.route_id
+  JOIN stop_times st1 ON t.trip_id = st1.trip_id
+  JOIN stops s1 ON st1.stop_id = s1.stop_id
+  JOIN stop_times st2 ON t.trip_id = st2.trip_id
+  JOIN stops s2 ON st2.stop_id = s2.stop_id
+  WHERE s1.stop_id = ? AND s2.stop_id = ? 
+  AND st1.stop_sequence < st2.stop_sequence
+  GROUP BY r.route_short_name;
+`;
