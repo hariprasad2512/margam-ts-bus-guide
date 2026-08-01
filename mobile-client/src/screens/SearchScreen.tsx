@@ -1,31 +1,31 @@
-import React, { useEffect, useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  View,
-  TextInput,
-  FlatList,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
+import React, { useEffect, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { 
+  View, 
+  TextInput, 
+  FlatList, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
   ActivityIndicator,
-} from "react-native";
-import { SQLiteDatabase } from "expo-sqlite";
-import { useSearchStore } from "../store/useSearchStore";
-import {
-  Route,
-  getRoutesBetweenStops,
+} from 'react-native';
+import { SQLiteDatabase } from 'expo-sqlite';
+import { useSearchStore } from '../store/useSearchStore';
+import { 
+  Route, 
+  getRoutesBetweenStops, 
   getTripTimeline,
   searchStopsQuery,
-  StopResult,
-} from "../db/searchQueries";
-import { initDatabase } from "../db/database";
+  StopResult 
+} from '../db/searchQueries';
+import { initDatabase } from '../db/database';
 
 export default function SearchScreen() {
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
 
   // Local state for the Auto-Suggest Dropdowns
-  const [fromSearchText, setFromSearchText] = useState("");
-  const [toSearchText, setToSearchText] = useState("");
+  const [fromSearchText, setFromSearchText] = useState('');
+  const [toSearchText, setToSearchText] = useState('');
   const [fromSuggestions, setFromSuggestions] = useState<StopResult[]>([]);
   const [toSuggestions, setToSuggestions] = useState<StopResult[]>([]);
 
@@ -52,22 +52,18 @@ export default function SearchScreen() {
       .then((database) => {
         if (isMounted) setDb(database);
       })
-      .catch((error) => console.error("Failed to init DB:", error));
-    return () => {
-      isMounted = false;
-    };
+      .catch((error) => console.error('Failed to init DB:', error));
+    return () => { isMounted = false; };
   }, []);
 
-  // --- NEW: Auto-Suggest Logic for "From" Stop ---
+  // --- Auto-Suggest Logic for "From" Stop ---
   const handleFromChange = async (text: string) => {
     setFromSearchText(text);
     if (fromStop) setFromStop(null); // Clear selected stop if user edits text
-
+    
     if (text.trim().length > 1 && db) {
       try {
-        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [
-          `%${text}%`,
-        ]);
+        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [`%${text}%`]);
         setFromSuggestions(res);
       } catch (e) {
         console.error(e);
@@ -83,16 +79,14 @@ export default function SearchScreen() {
     setFromSuggestions([]);
   };
 
-  // --- NEW: Auto-Suggest Logic for "To" Stop ---
+  // --- Auto-Suggest Logic for "To" Stop ---
   const handleToChange = async (text: string) => {
     setToSearchText(text);
     if (toStop) setToStop(null);
-
+    
     if (text.trim().length > 1 && db) {
       try {
-        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [
-          `%${text}%`,
-        ]);
+        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [`%${text}%`]);
         setToSuggestions(res);
       } catch (e) {
         console.error(e);
@@ -108,12 +102,13 @@ export default function SearchScreen() {
     setToSuggestions([]);
   };
 
-  // --- EXISTING LOGIC ---
+  // --- Existing Logic: Bus Number Search ---
   const handleBusNumberChange = (text: string) => {
     setSearchTerm(text);
     if (db) executeSearch(db, text);
   };
 
+  // Check connecting buses logic
   const handleCheckBuses = async () => {
     if (!fromStop?.stop_id || !toStop?.stop_id || !db) {
       console.warn("Please select valid stops from the dropdown.");
@@ -125,8 +120,10 @@ export default function SearchScreen() {
         toStop.stop_id,
       ]);
       setConnectingRoutes(routes as any);
+      navigation.navigate('RouteResults');
+      
     } catch (error) {
-      console.error("Error finding routes:", error);
+      console.error('Error finding routes:', error);
     }
   };
 
@@ -136,19 +133,19 @@ export default function SearchScreen() {
       const timeline = await db.getAllAsync(getTripTimeline, [tripId]);
       setSelectedTripTimeline(timeline as any);
     } catch (error) {
-      console.error("Error fetching timeline:", error);
+      console.error('Error fetching timeline:', error);
     }
   };
 
+  // NEW: Updated Route Item Renderer matching suggestion styles
   const renderRouteItem = ({ item }: { item: Route }) => (
-    <TouchableOpacity style={styles.resultItem} activeOpacity={0.7}>
-      <View style={styles.iconContainer}>
-        <Text style={styles.iconText}>🚌</Text>
-      </View>
-      <View style={styles.resultTextContainer}>
-        <Text style={styles.routeNumber}>{item.route_short_name}</Text>
-        <Text style={styles.routeSubtitle}>Tap to view stops</Text>
-      </View>
+    <TouchableOpacity 
+      style={styles.suggestionItem} 
+      activeOpacity={0.7}
+      // Assuming you might add a navigation action later:
+      onPress={() => console.log('Selected direct route:', item.route_short_name)}
+    >
+       <Text style={styles.suggestionText}>🚌  Route {item.route_short_name}</Text>
     </TouchableOpacity>
   );
 
@@ -167,6 +164,7 @@ export default function SearchScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.topSection}>
+            
             {/* 1. Point A to Point B Section */}
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Find Route</Text>
@@ -182,15 +180,13 @@ export default function SearchScreen() {
                 />
                 {fromSuggestions.length > 0 && (
                   <View style={styles.suggestionsContainer}>
-                    {fromSuggestions.map((stop) => (
-                      <TouchableOpacity
-                        key={stop.stop_id}
+                    {fromSuggestions.map(stop => (
+                      <TouchableOpacity 
+                        key={stop.stop_id} 
                         style={styles.suggestionItem}
                         onPress={() => handleSelectFrom(stop)}
                       >
-                        <Text style={styles.suggestionText}>
-                          {stop.stop_name}
-                        </Text>
+                        <Text style={styles.suggestionText}>{stop.stop_name}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -208,26 +204,24 @@ export default function SearchScreen() {
                 />
                 {toSuggestions.length > 0 && (
                   <View style={styles.suggestionsContainer}>
-                    {toSuggestions.map((stop) => (
-                      <TouchableOpacity
-                        key={stop.stop_id}
+                    {toSuggestions.map(stop => (
+                      <TouchableOpacity 
+                        key={stop.stop_id} 
                         style={styles.suggestionItem}
                         onPress={() => handleSelectTo(stop)}
                       >
-                        <Text style={styles.suggestionText}>
-                          {stop.stop_name}
-                        </Text>
+                        <Text style={styles.suggestionText}>{stop.stop_name}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 )}
               </View>
 
-              <TouchableOpacity
+              <TouchableOpacity 
                 style={[
-                  styles.button,
-                  (!fromStop || !toStop) && styles.buttonDisabled,
-                ]}
+                  styles.button, 
+                  (!fromStop || !toStop) && styles.buttonDisabled
+                ]} 
                 onPress={handleCheckBuses}
                 activeOpacity={0.8}
                 disabled={!fromStop || !toStop}
@@ -248,9 +242,7 @@ export default function SearchScreen() {
                       onPress={() => handleSelectTrip(item.trip_id)}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.routeBadgeText}>
-                        {item.route_short_name}
-                      </Text>
+                      <Text style={styles.routeBadgeText}>{item.route_short_name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -286,23 +278,16 @@ export default function SearchScreen() {
                 autoCapitalize="characters"
                 clearButtonMode="while-editing"
               />
-              
             </View>
 
             {isSearching && (
-              <ActivityIndicator
-                size="small"
-                color="#0066FF"
-                style={{ marginVertical: 10 }}
-              />
+              <ActivityIndicator size="small" color="#0066FF" style={{ marginVertical: 10 }} />
             )}
           </View>
         }
         ListEmptyComponent={
           searchTerm.length > 0 && !isSearching ? (
-            <Text style={styles.emptyText}>
-              No routes found for "{searchTerm}"
-            </Text>
+            <Text style={styles.emptyText}>No routes found for "{searchTerm}"</Text>
           ) : null
         }
       />
@@ -311,142 +296,60 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FAFAFA" },
+  container: { flex: 1, backgroundColor: '#FAFAFA' },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-    alignItems: "center",
+    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,
+    backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
+    alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#1A1A1A",
-    letterSpacing: 0.5,
-  },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1A1A1A', letterSpacing: 0.5 },
   listContainer: { paddingHorizontal: 20, paddingBottom: 20 },
   topSection: { paddingTop: 16 },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05,
+    shadowRadius: 12, elevation: 3, borderWidth: 1, borderColor: '#F0F0F0',
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1A1A1A",
-    marginBottom: 12,
-  },
-  inputWrapper: { zIndex: 1 }, // Added for suggestion dropdown overlay
+  cardTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A1A', marginBottom: 12 },
+  inputWrapper: { zIndex: 1 }, 
   input: {
-    backgroundColor: "#F8F9FA",
-    height: 50,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1A1A1A",
-    borderWidth: 1,
-    borderColor: "#E9ECEF",
+    backgroundColor: '#F8F9FA', height: 50, borderRadius: 12, paddingHorizontal: 16,
+    fontSize: 15, fontWeight: '600', color: '#1A1A1A', borderWidth: 1, borderColor: '#E9ECEF',
   },
   suggestionsContainer: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: "#E9ECEF",
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    elevation: 4,
+    backgroundColor: '#FFFFFF', borderRadius: 12, marginTop: 4,
+    borderWidth: 1, borderColor: '#E9ECEF', overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, elevation: 4,
   },
+  
+  // NOTE: Reusing this single clean style for BOTH "From/To" suggestions and the direct "Route Number" search results
   suggestionItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F8F9FA",
+    paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F8F9FA',
+    backgroundColor: '#FFFFFF', // Added so FlatList items don't have transparent backgrounds
   },
-  suggestionText: { fontSize: 14, color: "#343A40", fontWeight: "500" },
+  suggestionText: { fontSize: 15, color: '#343A40', fontWeight: '500' }, // Bumped font slightly for readability
+  
   button: {
-    backgroundColor: "#0066FF",
-    borderRadius: 12,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 14,
+    backgroundColor: '#0066FF', borderRadius: 12, height: 50, justifyContent: 'center',
+    alignItems: 'center', marginTop: 14,
   },
-  buttonDisabled: { backgroundColor: "#A0C4FF" }, // Lighter blue when unclickable
-  buttonText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
-  divider: { height: 1, backgroundColor: "#E9ECEF", marginVertical: 8 },
-  badgeContainer: { flexDirection: "row", flexWrap: "wrap" },
+  buttonDisabled: { backgroundColor: '#A0C4FF' }, 
+  buttonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  divider: { height: 1, backgroundColor: '#E9ECEF', marginVertical: 8 },
+  badgeContainer: { flexDirection: 'row', flexWrap: 'wrap' },
   routeBadge: {
-    backgroundColor: "#E7F0FF",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginRight: 8,
-    marginBottom: 8,
+    backgroundColor: '#E7F0FF', paddingHorizontal: 16, paddingVertical: 10,
+    borderRadius: 10, marginRight: 8, marginBottom: 8,
   },
-  routeBadgeText: { color: "#0066FF", fontWeight: "700", fontSize: 15 },
+  routeBadgeText: { color: '#0066FF', fontWeight: '700', fontSize: 15 },
   timelineItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F8F9FA",
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
+    borderBottomWidth: 1, borderBottomColor: '#F8F9FA',
   },
   timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#0066FF",
-    marginRight: 12,
+    width: 10, height: 10, borderRadius: 5, backgroundColor: '#0066FF', marginRight: 12,
   },
-  timelineText: { flex: 1, fontSize: 14, color: "#343A40", fontWeight: "600" },
-  timelineTime: { fontSize: 13, color: "#6C757D", fontWeight: "500" },
-  resultItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  iconContainer: {
-    backgroundColor: "#F0F4FF",
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  iconText: { fontSize: 22 },
-  resultTextContainer: { flex: 1 },
-  routeNumber: { fontSize: 20, fontWeight: "700", color: "#1A1A1A" },
-  routeSubtitle: { fontSize: 14, color: "#666666", marginTop: 2 },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 20,
-    fontSize: 15,
-    color: "#888888",
-    fontWeight: "500",
-  },
+  timelineText: { flex: 1, fontSize: 14, color: '#343A40', fontWeight: '600' },
+  timelineTime: { fontSize: 13, color: '#6C757D', fontWeight: '500' },
+  emptyText: { textAlign: 'center', marginTop: 20, fontSize: 15, color: '#888888', fontWeight: '500' },
 });
