@@ -14,6 +14,7 @@ export interface RouteResult {
 
 // Arrange the Stops according to the stop_sequence
 export interface TimelineStop {
+  stop_id: string;
   stop_name: string;
   arrival_time: string;
   stop_sequence: number;
@@ -56,7 +57,7 @@ export const searchRoutesByNumber = async (db: SQLiteDatabase, searchTerm: strin
 
 // 3. The Timeline Query for a specific trip
 export const getTripTimeline = `
-  SELECT s.stop_name, st.arrival_time, st.stop_sequence
+  SELECT st.stop_id, s.stop_name, st.arrival_time, st.stop_sequence
   FROM stop_times st
   JOIN stops s ON st.stop_id = s.stop_id
   WHERE st.trip_id = ?

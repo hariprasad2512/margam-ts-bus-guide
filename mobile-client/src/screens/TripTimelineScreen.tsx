@@ -77,7 +77,7 @@ export default function TripTimelineScreen() {
               {/* Stop Information */}
               <View style={styles.stopInfo}>
                 <Text style={styles.stopName}>{item.stop_name}</Text>
-                <Text style={styles.arrivalTime}>{item.arrival_time}</Text>
+                <Text style={styles.arrivalTime}>{formatTime(item.arrival_time)}</Text>
               </View>
             </View>
           );
