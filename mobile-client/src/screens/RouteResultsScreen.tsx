@@ -145,7 +145,7 @@ export default function RouteResultsScreen() {
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Available Buses</Text>
-        <View style={{ width: 50 }} /> {/* Placeholder for centering */}
+        <View style={{ width: 50 }} />
       </View>
       <View style={styles.contextBanner}>
         <Text style={styles.contextLabel}>From:</Text>
