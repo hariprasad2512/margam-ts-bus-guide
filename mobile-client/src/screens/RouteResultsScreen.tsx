@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -15,12 +15,15 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RouteResult
 interface RouteCardItem extends RouteResult {
   originStopName: string;
   arrivalTimeAtFromStop: string | null;
+  arrivalMinutesFromMidnight: number | null;
+  isFuture: boolean;
 }
 
 export default function RouteResultsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
   const [routeCards, setRouteCards] = useState<RouteCardItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   
   const { fromStop, toStop, connectingRoutes, setSelectedTripTimeline } = useSearchStore();
 
@@ -39,25 +42,53 @@ export default function RouteResultsScreen() {
 
     const loadRouteCards = async () => {
       if (!db || !fromStop || !connectingRoutes.length) {
-        if (isMounted) setRouteCards([]);
+        if (isMounted) {
+          setRouteCards([]);
+          setIsLoading(false);
+        }
         return;
       }
+
+      if (isMounted) setIsLoading(true);
+
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const parseTimeToMinutes = (value: string | null) => {
+        if (!value) return null;
+        const [hours, minutes] = value.split(':').map(Number);
+        const safeHours = Number.isFinite(hours) ? hours : 0;
+        const safeMinutes = Number.isFinite(minutes) ? minutes : 0;
+        return safeHours * 60 + safeMinutes;
+      };
 
       const cards = await Promise.all(
         connectingRoutes.map(async (route) => {
           const timeline = await db.getAllAsync<TimelineStop>(getTripTimeline, [route.trip_id]);
           const firstStop = timeline[0];
-          const matchingStop = timeline.find((stop) => stop.stop_id === fromStop.stop_id);
+          const matchingStop = timeline.find(
+            (stop) => stop.stop_id === fromStop.stop_id || stop.stop_name === fromStop.stop_name
+          );
+
+          const arrivalMinutes = parseTimeToMinutes(matchingStop?.arrival_time ?? null);
+          const isFuture = arrivalMinutes !== null && arrivalMinutes >= nowMinutes;
 
           return {
             ...route,
             originStopName: firstStop?.stop_name ?? 'Unknown',
             arrivalTimeAtFromStop: matchingStop?.arrival_time ?? null,
+            arrivalMinutesFromMidnight: arrivalMinutes,
+            isFuture,
           };
         })
       );
 
-      if (isMounted) setRouteCards(cards);
+      const upcomingCards = cards.filter((card) => card.isFuture);
+
+      if (isMounted) {
+        setRouteCards(upcomingCards);
+        setIsLoading(false);
+      }
     };
 
     loadRouteCards();
@@ -108,7 +139,7 @@ export default function RouteResultsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with Back Button */}
+      
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backText}>← Back</Text>
@@ -116,8 +147,6 @@ export default function RouteResultsScreen() {
         <Text style={styles.headerTitle}>Available Buses</Text>
         <View style={{ width: 50 }} /> {/* Placeholder for centering */}
       </View>
-
-      {/* Stop Context Banner */}
       <View style={styles.contextBanner}>
         <Text style={styles.contextLabel}>From:</Text>
         <Text style={styles.contextValue}>{fromStop?.stop_name}</Text>
@@ -126,31 +155,37 @@ export default function RouteResultsScreen() {
         <Text style={styles.contextValue}>{toStop?.stop_name}</Text>
       </View>
 
-      {/* Results List */}
-      <FlatList
-        data={routeCards}
-        keyExtractor={(item) => `${item.trip_id}-${item.route_short_name}`}
-        contentContainerStyle={styles.listContainer}
-        renderItem={({ item }) => (
+      {isLoading ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color="#0066FF" />
+          <Text style={styles.loadingText}>Fetching buses for you...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={routeCards}
+          keyExtractor={(item) => `${item.trip_id}-${item.route_short_name}`}
+          contentContainerStyle={styles.listContainer}
+          renderItem={({ item }) => (
           <TouchableOpacity 
             style={styles.routeCard} 
             onPress={() => handleSelectTrip(item.trip_id)}
             activeOpacity={0.7}
           >
-            <View style={styles.iconContainer}>
-              <Text style={styles.iconText}>🚌</Text>
+            <View style={styles.timeBadge}>
+              <Text style={styles.timeValue}>{formatTime(item.arrivalTimeAtFromStop)}</Text>
             </View>
             <View style={styles.routeInfo}>
               <Text style={styles.routeNumber}>Bus {item.route_short_name}</Text>
-              <Text style={styles.routeSubtitle}>Coming from: {item.originStopName}</Text>
+              <Text style={styles.routeSubtitle}>From {item.originStopName}</Text>
               <Text style={styles.routeTime}>
-                {fromStop?.stop_name ? `Reaches ${fromStop.stop_name} at ${formatTime(item.arrivalTimeAtFromStop)}` : 'Tap to view timeline'}
+                {fromStop?.stop_name ? `Arrives at ${fromStop.stop_name}` : 'Tap to view timeline'}
               </Text>
             </View>
           </TouchableOpacity>
-        )}
-        ListEmptyComponent={<Text style={styles.emptyText}>No direct buses found for this route.</Text>}
-      />
+          )}
+          ListEmptyComponent={<Text style={styles.emptyText}>No direct buses found for this route.</Text>}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -166,12 +201,36 @@ const styles = StyleSheet.create({
   contextValue: { fontSize: 16, color: '#1A1A1A', fontWeight: '600' },
   contextDivider: { height: 1, backgroundColor: '#B3D4FF', marginVertical: 8 },
   listContainer: { paddingHorizontal: 16, paddingBottom: 20 },
-  routeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', padding: 16, borderRadius: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
-  iconContainer: { backgroundColor: '#F0F4FF', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  iconText: { fontSize: 22 },
+  routeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F0F4FF',
+  },
+  timeBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
+    backgroundColor: '#E7F0FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  timeValue: { fontSize: 16, fontWeight: '700', color: '#0066FF' },
   routeInfo: { flex: 1 },
-  routeNumber: { fontSize: 20, fontWeight: '700', color: '#1A1A1A' },
+  routeNumber: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
   routeSubtitle: { fontSize: 14, color: '#666666', marginTop: 2 },
-  routeTime: { fontSize: 13, color: '#0066FF', marginTop: 6, fontWeight: '600' },
+  routeTime: { fontSize: 13, color: '#4B5563', marginTop: 4, fontWeight: '500' },
+  loadingState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  loadingText: { marginTop: 12, fontSize: 16, color: '#4B5563', fontWeight: '600' },
   emptyText: { textAlign: 'center', marginTop: 40, fontSize: 15, color: '#888888', fontWeight: '500' },
 });
