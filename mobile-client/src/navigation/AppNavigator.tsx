@@ -3,25 +3,32 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, StyleSheet } from 'react-native';
 import SearchScreen from '../screens/SearchScreen';
-// Temporary placeholder screens (We will move these to src/screens/ in the next step)
-// const SearchScreen = () => <View style={styles.container}><Text>Search Routes Offline</Text></View>;
-// const MapScreen = () => <View style={styles.container}><Text>Nearby Stops Map</Text></View>;
-// const TimetableScreen = () => <View style={styles.container}><Text>Stop Timetables</Text></View>;
+import RouteResultsScreen from '../screens/RouteResultsScreen';
+import TripTimelineScreen from '../screens/TripTimelineScreen';
 
 const Stack = createNativeStackNavigator();
+
+// Define our route parameters for type safety
+export type RootStackParamList = {
+  Search: undefined;
+  RouteResults: undefined;
+  TripTimeline: undefined;
+};
+
 
 export default function AppNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Search">
-        <Stack.Screen 
-          name="Search" 
-          component={SearchScreen} 
-          // We hide the default header because we built our own clean header in the UI
-          options={{ headerShown: false }} 
-        />
-        {/* <Stack.Screen name="Map" component={MapScreen} />
-        <Stack.Screen name="Timetable" component={TimetableScreen} /> */}
+      <Stack.Navigator 
+        initialRouteName="Search"
+        screenOptions={{
+          headerShown: false, // We are building our own custom headers
+          animation: 'slide_from_right' // Smooth native slide transition
+        }}
+      >
+        <Stack.Screen name="Search" component={SearchScreen} />
+        <Stack.Screen name="RouteResults" component={RouteResultsScreen} />
+        <Stack.Screen name="TripTimeline" component={TripTimelineScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
