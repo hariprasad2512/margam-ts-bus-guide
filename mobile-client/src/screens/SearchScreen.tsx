@@ -214,7 +214,7 @@ export default function SearchScreen() {
       activeOpacity={0.7}
       onPress={() => handleSelectRoute(item)}
     >
-       <Text style={styles.suggestionText}>🚌  Route {item.route_short_name}</Text>
+       <Text style={styles.suggestionText}>🚌 Route {item.route_short_name}</Text>
     </TouchableOpacity>
   );
 
@@ -222,6 +222,8 @@ export default function SearchScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Maargam</Text>
+        
+
       </View>
 
       <FlatList
@@ -327,6 +329,10 @@ export default function SearchScreen() {
           ) : null
         }
       />
+
+      <TouchableOpacity style={styles.header} onPress={() => navigation.navigate('About')}>
+  <Text style={{ color: '#28313f', fontWeight: '600', marginTop: 4 }}>About Maargam</Text>
+</TouchableOpacity>
     </SafeAreaView>
   );
 }
