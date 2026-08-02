@@ -64,6 +64,13 @@ export const getTripTimeline = `
   ORDER BY st.stop_sequence ASC;
 `;
 
+export const getRepresentativeRouteTrip = `
+  SELECT trip_id
+  FROM trips
+  WHERE route_id = ?
+  ORDER BY trip_id
+  LIMIT 1;
+`;
 
 export interface StopResult {
   stop_id: string;

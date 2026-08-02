@@ -18,7 +18,10 @@ import { useSearchStore } from '../store/useSearchStore';
 import { 
   Route, 
   RouteResult,
+  TimelineStop,
   getRoutesBetweenStops, 
+  getTripTimeline,
+  getRepresentativeRouteTrip,
   searchStopsQuery,
   StopResult 
 } from '../db/searchQueries';
@@ -45,6 +48,8 @@ export default function SearchScreen() {
     setToStop,
     connectingRoutes,
     setConnectingRoutes,
+    selectedTripTimeline,
+    setSelectedTripTimeline,
     searchTerm,
     results,
     isSearching,
@@ -180,13 +185,34 @@ export default function SearchScreen() {
   };
 
   // Render direct bus result item using unified clean styling
+  const handleSelectRoute = async (route: Route) => {
+    if (!db) return;
+
+    try {
+      const tripRecords = await db.getAllAsync<{ trip_id: string }>(
+        getRepresentativeRouteTrip,
+        [route.route_id]
+      );
+
+      const selectedTrip = tripRecords[0];
+      if (!selectedTrip) {
+        console.warn('No trip found for this route.');
+        return;
+      }
+
+      const timeline = await db.getAllAsync<TimelineStop>(getTripTimeline, [selectedTrip.trip_id]);
+      setSelectedTripTimeline(timeline ?? []);
+      navigation.navigate('TripTimeline');
+    } catch (error) {
+      console.error('Failed to load route timeline:', error);
+    }
+  };
+
   const renderRouteItem = ({ item }: { item: Route }) => (
     <TouchableOpacity 
       style={styles.suggestionItem} 
       activeOpacity={0.7}
-      onPress={() => {console.log('Selected direct route:', item.route_short_name);
-        navigation.navigate('TripTimeline');
-      }}
+      onPress={() => handleSelectRoute(item)}
     >
        <Text style={styles.suggestionText}>🚌  Route {item.route_short_name}</Text>
     </TouchableOpacity>
