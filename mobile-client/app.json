@@ -47,6 +47,12 @@
         "projectId": "10f82196-e9bb-4b32-9137-f9fe08ef597b"
       }
     },
-    "owner": "hpsd-studio"
+    "owner": "hpsd-studio",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/10f82196-e9bb-4b32-9137-f9fe08ef597b"
+    }
   }
 }
