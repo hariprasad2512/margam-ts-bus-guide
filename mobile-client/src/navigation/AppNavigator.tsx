@@ -5,6 +5,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import SearchScreen from '../screens/SearchScreen';
 import RouteResultsScreen from '../screens/RouteResultsScreen';
 import TripTimelineScreen from '../screens/TripTimelineScreen';
+import AboutScreen from '../screens/AboutScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -13,6 +14,7 @@ export type RootStackParamList = {
   Search: undefined;
   RouteResults: undefined;
   TripTimeline: undefined;
+  About: undefined;
 };
 
 
@@ -29,6 +31,8 @@ export default function AppNavigator() {
         <Stack.Screen name="Search" component={SearchScreen} />
         <Stack.Screen name="RouteResults" component={RouteResultsScreen} />
         <Stack.Screen name="TripTimeline" component={TripTimelineScreen} />
+        <Stack.Screen name="About" component={AboutScreen} />
+
       </Stack.Navigator>
     </NavigationContainer>
   );

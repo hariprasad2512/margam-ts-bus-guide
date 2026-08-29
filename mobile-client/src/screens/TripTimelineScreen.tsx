@@ -8,36 +8,6 @@ export default function TripTimelineScreen() {
   const navigation = useNavigation();
   const { selectedTripTimeline } = useSearchStore();
 
-  const nextStop = useMemo(() => {
-    if (!selectedTripTimeline?.length) return null;
-
-    const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-
-    const parseTime = (value: string) => {
-      const [hours, minutes] = value.split(':').map(Number);
-      const safeHours = Number.isFinite(hours) ? hours : 0;
-      const safeMinutes = Number.isFinite(minutes) ? minutes : 0;
-      return safeHours * 60 + safeMinutes;
-    };
-
-    const sortedStops = selectedTripTimeline
-      .map((stop) => ({ ...stop, minutes: parseTime(stop.arrival_time) }))
-      .filter((stop) => Number.isFinite(stop.minutes));
-
-    const upcoming = sortedStops.find((stop) => stop.minutes >= nowMinutes); 
-    return upcoming ?? sortedStops[0] ?? null;
-  }, [selectedTripTimeline]);
-
-  const formatTime = (value: string) => {
-    const [hours, minutes] = value.split(':').map(Number);
-    const safeHours = Number.isFinite(hours) ? hours : 0;
-    const safeMinutes = Number.isFinite(minutes) ? minutes : 0;
-    const period = safeHours >= 12 ? 'PM' : 'AM';
-    const displayHour = safeHours % 12 === 0 ? 12 : safeHours % 12;
-    return `${displayHour}:${safeMinutes.toString().padStart(2, '0')} ${period}`;
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -48,14 +18,6 @@ export default function TripTimelineScreen() {
         <Text style={styles.headerTitle}>Route Timeline</Text>
         <View style={{ width: 50 }} /> 
       </View>
-
-      {nextStop && (
-        <View style={styles.nextStopBanner}>
-          <Text style={styles.nextStopLabel}>Next bus time</Text>
-          <Text style={styles.nextStopValue}>{formatTime(nextStop.arrival_time)}</Text>
-          <Text style={styles.nextStopSubtitle}>{nextStop.stop_name}</Text>
-        </View>
-      )}
 
       <FlatList
         data={selectedTripTimeline}
@@ -77,7 +39,6 @@ export default function TripTimelineScreen() {
               {/* Stop Information */}
               <View style={styles.stopInfo}>
                 <Text style={styles.stopName}>{item.stop_name}</Text>
-                <Text style={styles.arrivalTime}>{formatTime(item.arrival_time)}</Text>
               </View>
             </View>
           );

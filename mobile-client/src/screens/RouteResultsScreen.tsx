@@ -108,16 +108,25 @@ export default function RouteResultsScreen() {
         return;
       }
 
-      const fromIndex = timeline.findIndex((stop) => stop.stop_id === fromStop.stop_id);
-      const toIndex = timeline.findIndex((stop) => stop.stop_id === toStop.stop_id);
+      const findStopIndex = (stopId: string, stopName: string) =>
+        timeline.findIndex(
+          (stop) => stop.stop_id === stopId || stop.stop_name === stopName
+        );
 
-      const startIndex = fromIndex >= 0 ? fromIndex : 0;
-      const endIndex = toIndex >= 0 ? toIndex : timeline.length - 1;
+      const fromIndex = findStopIndex(fromStop.stop_id, fromStop.stop_name);
+      const toIndex = findStopIndex(toStop.stop_id, toStop.stop_name);
+
+      if (fromIndex < 0 || toIndex < 0) {
+        console.warn('Selected route does not contain both chosen stops. Showing full route timeline.');
+        setSelectedTripTimeline(timeline);
+        navigation.navigate('TripTimeline');
+        return;
+      }
 
       const orderedTimeline =
-        startIndex <= endIndex
-          ? timeline.slice(startIndex, endIndex + 1)
-          : timeline.slice(endIndex, startIndex + 1).reverse();
+        fromIndex <= toIndex
+          ? timeline.slice(fromIndex, toIndex + 1)
+          : timeline.slice(toIndex, fromIndex + 1).reverse();
 
       setSelectedTripTimeline(orderedTimeline);
       navigation.navigate('TripTimeline');
