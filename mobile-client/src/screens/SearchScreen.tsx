@@ -8,6 +8,7 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SQLiteDatabase } from 'expo-sqlite';
 import { useNavigation } from '@react-navigation/native';
@@ -26,6 +27,7 @@ import {
   StopResult 
 } from '../db/searchQueries';
 import { initDatabase } from '../db/database';
+import { colors } from '../theme';
 
 // Type our navigation prop
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Search'>;
@@ -221,9 +223,11 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Maargam</Text>
-        
-
+        <Image source={require('../../assets/icon.png')} style={styles.headerLogo} />
+        <View>
+          <Text style={styles.headerTitle}>Maargam</Text>
+          <Text style={styles.headerSubtitle}>Your Hyderabad transit companion</Text>
+        </View>
       </View>
 
       <FlatList
@@ -238,14 +242,17 @@ export default function SearchScreen() {
             
             {/* 1. Point A to Point B Section */}
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Find Route</Text>
+              <View style={styles.sectionHeading}>
+                <Text style={styles.cardTitle}>Plan your journey</Text>
+                <Text style={styles.sectionEyebrow}>POINT TO POINT</Text>
+              </View>
 
               {/* From Input */}
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.input}
-                  placeholder="From (e.g., Mehdipatnam)"
-                  placeholderTextColor="#A0A0A0"
+                  placeholder="From — e.g. Mehdipatnam"
+                  placeholderTextColor={colors.textMuted}
                   value={fromSearchText}
                   onChangeText={handleFromChange}
                 />
@@ -268,8 +275,8 @@ export default function SearchScreen() {
               <View style={[styles.inputWrapper, { marginTop: 10 }]}>
                 <TextInput
                   style={styles.input}
-                  placeholder="To (e.g., Lingampally)"
-                  placeholderTextColor="#A0A0A0"
+                  placeholder="To — e.g. Lingampally"
+                  placeholderTextColor={colors.textMuted}
                   value={toSearchText}
                   onChangeText={handleToChange}
                 />
@@ -297,7 +304,7 @@ export default function SearchScreen() {
                 activeOpacity={0.8}
                 disabled={!fromStop || !toStop}
               >
-                <Text style={styles.buttonText}>Check Buses in Route</Text>
+                <Text style={styles.buttonText}>Find buses</Text>
               </TouchableOpacity>
             </View>
 
@@ -305,11 +312,14 @@ export default function SearchScreen() {
 
             {/* 2. Secondary: Search Route by Number */}
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Search Route by Number</Text>
+              <View style={styles.sectionHeading}>
+                <Text style={styles.cardTitle}>Know your bus number?</Text>
+                <Text style={styles.sectionEyebrow}>QUICK SEARCH</Text>
+              </View>
               <TextInput
                 style={styles.input}
-                placeholder="Enter bus number (e.g., 216, 113M)"
-                placeholderTextColor="#A0A0A0"
+                placeholder="Enter bus number — e.g. 216"
+                placeholderTextColor={colors.textMuted}
                 value={searchTerm}
                 onChangeText={handleBusNumberChange}
                 autoCorrect={false}
@@ -325,55 +335,63 @@ export default function SearchScreen() {
         }
         ListEmptyComponent={
           searchTerm.length > 0 && !isSearching ? (
-            <Text style={styles.emptyText}>No routes found for "{searchTerm}"</Text>
+          <Text style={styles.emptyText}>No routes found for “{searchTerm}”</Text>
           ) : null
         }
       />
 
-      <TouchableOpacity style={styles.header} onPress={() => navigation.navigate('About')}>
-  <Text style={{ color: '#28313f', fontWeight: '600', marginTop: 4 }}>About Maargam</Text>
-</TouchableOpacity>
+      <TouchableOpacity style={styles.aboutLink} onPress={() => navigation.navigate('About')}>
+        <Text style={styles.aboutLinkText}>About Maargam</Text>
+        <Text style={styles.aboutArrow}>→</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAFAFA' },
+  container: { flex: 1, backgroundColor: colors.canvas },
   header: {
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,
-    backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
-    alignItems: 'center',
+    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16,
+    backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
+    flexDirection: 'row', alignItems: 'center',
   },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: '#1A1A1A', letterSpacing: 0.5 },
+  headerLogo: { width: 48, height: 48, borderRadius: 12, marginRight: 12 },
+  headerTitle: { fontSize: 25, fontWeight: '800', color: colors.primary, letterSpacing: 0.2 },
+  headerSubtitle: { fontSize: 12, color: colors.textMuted, fontWeight: '600', marginTop: 1 },
   listContainer: { paddingHorizontal: 20, paddingBottom: 20 },
-  topSection: { paddingTop: 16 },
+  topSection: { paddingTop: 20 },
   card: {
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05,
-    shadowRadius: 12, elevation: 3, borderWidth: 1, borderColor: '#F0F0F0',
+    backgroundColor: colors.surface, borderRadius: 20, padding: 18, marginBottom: 16,
+    shadowColor: colors.primaryDark, shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08,
+    shadowRadius: 14, elevation: 3, borderWidth: 1, borderColor: colors.border,
   },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#1A1A1A', marginBottom: 12 },
+  sectionHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 13 },
+  cardTitle: { fontSize: 17, fontWeight: '800', color: colors.navy },
+  sectionEyebrow: { fontSize: 10, fontWeight: '800', color: colors.primary, letterSpacing: 0.7 },
   inputWrapper: { zIndex: 1 }, 
   input: {
-    backgroundColor: '#F8F9FA', height: 50, borderRadius: 12, paddingHorizontal: 16,
-    fontSize: 15, fontWeight: '600', color: '#1A1A1A', borderWidth: 1, borderColor: '#E9ECEF',
+    backgroundColor: '#F8FBFF', height: 52, borderRadius: 13, paddingHorizontal: 16,
+    fontSize: 15, fontWeight: '600', color: colors.ink, borderWidth: 1, borderColor: colors.border,
   },
   suggestionsContainer: {
-    backgroundColor: '#FFFFFF', borderRadius: 12, marginTop: 4,
-    borderWidth: 1, borderColor: '#E9ECEF', overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, elevation: 4,
+    backgroundColor: colors.surface, borderRadius: 13, marginTop: 4,
+    borderWidth: 1, borderColor: colors.primaryMuted, overflow: 'hidden',
+    shadowColor: colors.primaryDark, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, elevation: 4,
   },
   suggestionItem: {
-    paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F8F9FA',
-    backgroundColor: '#FFFFFF', 
+    paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.primarySoft,
+    backgroundColor: colors.surface,
   },
-  suggestionText: { fontSize: 15, color: '#343A40', fontWeight: '500' },
+  suggestionText: { fontSize: 15, color: colors.ink, fontWeight: '600' },
   button: {
-    backgroundColor: '#0066FF', borderRadius: 12, height: 50, justifyContent: 'center',
-    alignItems: 'center', marginTop: 14,
+    backgroundColor: colors.primary, borderRadius: 13, height: 52, justifyContent: 'center',
+    alignItems: 'center', marginTop: 14, shadowColor: colors.primary, shadowOpacity: 0.22, shadowRadius: 8, elevation: 3,
   },
-  buttonDisabled: { backgroundColor: '#A0C4FF' }, 
+  buttonDisabled: { backgroundColor: '#98BCEB', shadowOpacity: 0 },
   buttonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
-  divider: { height: 1, backgroundColor: '#E9ECEF', marginVertical: 8 },
-  emptyText: { textAlign: 'center', marginTop: 20, fontSize: 15, color: '#888888', fontWeight: '500' },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 8 },
+  emptyText: { textAlign: 'center', marginTop: 20, fontSize: 15, color: colors.textMuted, fontWeight: '500' },
+  aboutLink: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7, paddingVertical: 15, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
+  aboutLinkText: { color: colors.primary, fontWeight: '800', fontSize: 14 },
+  aboutArrow: { color: colors.primary, fontWeight: '800', fontSize: 18 },
 });

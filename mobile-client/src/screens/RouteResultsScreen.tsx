@@ -9,6 +9,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { useSearchStore } from '../store/useSearchStore';
 import { getTripTimeline, RouteResult, TimelineStop } from '../db/searchQueries';
 import { initDatabase } from '../db/database';
+import { colors } from '../theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RouteResults'>;
 
@@ -166,7 +167,7 @@ export default function RouteResultsScreen() {
 
       {isLoading ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator size="large" color="#0066FF" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Fetching buses for you...</Text>
         </View>
       ) : (
@@ -200,46 +201,46 @@ export default function RouteResultsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAFAFA' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  container: { flex: 1, backgroundColor: colors.canvas },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   backButton: { padding: 8 },
-  backText: { fontSize: 16, color: '#0066FF', fontWeight: '600' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
-  contextBanner: { backgroundColor: '#E7F0FF', padding: 16, margin: 16, borderRadius: 12 },
-  contextLabel: { fontSize: 13, color: '#0066FF', fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 },
-  contextValue: { fontSize: 16, color: '#1A1A1A', fontWeight: '600' },
-  contextDivider: { height: 1, backgroundColor: '#B3D4FF', marginVertical: 8 },
+  backText: { fontSize: 16, color: colors.primary, fontWeight: '700' },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: colors.navy },
+  contextBanner: { backgroundColor: colors.primarySoft, padding: 16, margin: 16, borderRadius: 16, borderWidth: 1, borderColor: colors.primaryMuted },
+  contextLabel: { fontSize: 11, color: colors.primary, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 2 },
+  contextValue: { fontSize: 16, color: colors.navy, fontWeight: '700' },
+  contextDivider: { height: 1, backgroundColor: colors.primaryMuted, marginVertical: 8 },
   listContainer: { paddingHorizontal: 16, paddingBottom: 20 },
   routeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 18,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: colors.primaryDark,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#F0F4FF',
+    borderColor: colors.border,
   },
   timeBadge: {
     width: 72,
     height: 72,
     borderRadius: 16,
-    backgroundColor: '#E7F0FF',
+    backgroundColor: colors.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
-  timeValue: { fontSize: 16, fontWeight: '700', color: '#0066FF' },
+  timeValue: { fontSize: 16, fontWeight: '800', color: colors.primary },
   routeInfo: { flex: 1 },
-  routeNumber: { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
-  routeSubtitle: { fontSize: 14, color: '#666666', marginTop: 2 },
-  routeTime: { fontSize: 13, color: '#4B5563', marginTop: 4, fontWeight: '500' },
+  routeNumber: { fontSize: 18, fontWeight: '800', color: colors.navy },
+  routeSubtitle: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
+  routeTime: { fontSize: 13, color: colors.textMuted, marginTop: 4, fontWeight: '600' },
   loadingState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  loadingText: { marginTop: 12, fontSize: 16, color: '#4B5563', fontWeight: '600' },
-  emptyText: { textAlign: 'center', marginTop: 40, fontSize: 15, color: '#888888', fontWeight: '500' },
+  loadingText: { marginTop: 12, fontSize: 16, color: colors.textMuted, fontWeight: '600' },
+  emptyText: { textAlign: 'center', marginTop: 40, fontSize: 15, color: colors.textMuted, fontWeight: '500' },
 });

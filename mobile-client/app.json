@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile-client",
-    "slug": "mobile-client",
+    "name": "Maargam",
+    "slug": "maargam",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,7 +11,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#004AAD",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -23,7 +23,29 @@
     },
     "plugins": [
       "expo-sqlite",
-      "expo-asset"
-    ]
+      [
+        "expo-asset",
+        {
+          "assets": [
+            "./assets/tgsrtc.db"
+          ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/splash.png",
+          "imageWidth": 240,
+          "resizeMode": "contain"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "10f82196-e9bb-4b32-9137-f9fe08ef597b"
+      }
+    },
+    "owner": "hpsd-studio"
   }
 }

@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '../theme';
 
 export default function AboutScreen() {
   return (
@@ -8,7 +9,9 @@ export default function AboutScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.header}>
+          <Image source={require('../../assets/icon.png')} style={styles.logo} />
           <Text style={styles.headerTitle}>Maargam</Text>
+          <Text style={styles.tagline}>Your route. Made simple.</Text>
           <Text style={styles.versionText}>Version 1.0.0</Text>
         </View>
 
@@ -57,46 +60,48 @@ export default function AboutScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.canvas,
   },
   container: {
     paddingHorizontal: 20,
     paddingBottom: 40,
-    paddingTop: 16,
+    paddingTop: 24,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 26,
   },
+  logo: { width: 112, height: 112, borderRadius: 28, marginBottom: 12 },
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: colors.primary,
     letterSpacing: 0.5,
   },
   versionText: {
     fontSize: 14,
-    color: '#666666',
+    color: colors.textMuted,
     fontWeight: '500',
-    marginTop: 4,
+    marginTop: 8,
   },
+  tagline: { fontSize: 15, color: colors.navy, fontWeight: '700', marginTop: 2 },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: colors.primaryDark,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: colors.border,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#0066FF',
+    color: colors.primary,
     marginBottom: 12,
   },
   disclaimerBlock: {
@@ -105,17 +110,17 @@ const styles = StyleSheet.create({
   disclaimerHeading: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: colors.navy,
     marginBottom: 4,
   },
   bodyText: {
     fontSize: 14,
-    color: '#4A4A4A',
+    color: colors.textMuted,
     lineHeight: 22,
   },
   divider: {
     height: 1,
-    backgroundColor: '#E9ECEF',
+    backgroundColor: colors.border,
     marginVertical: 12,
   },
 });
