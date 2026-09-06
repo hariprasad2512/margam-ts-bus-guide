@@ -1,9 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, Linking, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../theme';
 
 export default function AboutScreen() {
+  const openSource = (url: string) => Linking.openURL(url);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -30,7 +32,7 @@ export default function AboutScreen() {
           <View style={styles.disclaimerBlock}>
             <Text style={styles.disclaimerHeading}>Unofficial Application</Text>
             <Text style={styles.bodyText}>
-              This application is an independent, privately developed tool. It is NOT affiliated with, endorsed by, or an official application of the Telangana State Road Transport Corporation (TGSRTC) or any government entity.
+              Maargam is an independent, privately developed app. It does not represent, speak for, or provide services on behalf of TGSRTC, the Government of Telangana, or any other government entity. It is not affiliated with or endorsed by TGSRTC.
             </Text>
           </View>
 
@@ -39,7 +41,7 @@ export default function AboutScreen() {
           <View style={styles.disclaimerBlock}>
             <Text style={styles.disclaimerHeading}>Data Attribution</Text>
             <Text style={styles.bodyText}>
-              Contains data provided by TGSRTC. The transit schedules and stop locations used in this application are sourced from the General Transit Feed Specification (GTFS) data published via the Government of Telangana Open Data portal.
+              Transit schedules and stop locations are based on General Transit Feed Specification (GTFS) data published through the Government of Telangana Open Data portal. Information may change and should be verified with the official sources below.
             </Text>
           </View>
 
@@ -51,6 +53,31 @@ export default function AboutScreen() {
               While every effort is made to ensure accuracy, the developer assumes no responsibility for delays, route changes, or discrepancies in the transit schedules.
             </Text>
           </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Official Information Sources</Text>
+          <Text style={styles.bodyText}>
+            These links identify the official sources for the government information used by this app.
+          </Text>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Open Telangana Open Data GTFS collection"
+            onPress={() => openSource('https://data.telangana.gov.in/collection/general-transit-feed-specification-gtfs-hyderabad')}
+            style={styles.sourceLink}
+          >
+            <Text style={styles.sourceTitle}>Government of Telangana Open Data: Hyderabad GTFS</Text>
+            <Text style={styles.sourceUrl}>https://data.telangana.gov.in/collection/general-transit-feed-specification-gtfs-hyderabad</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Open official TGSRTC Open Data page"
+            onPress={() => openSource('https://www.tgsrtc.telangana.gov.in/open-data')}
+            style={styles.sourceLink}
+          >
+            <Text style={styles.sourceTitle}>Official TGSRTC Open Data</Text>
+            <Text style={styles.sourceUrl}>https://www.tgsrtc.telangana.gov.in/open-data</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -122,5 +149,23 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
     marginVertical: 12,
+  },
+  sourceLink: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  sourceTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+    lineHeight: 20,
+  },
+  sourceUrl: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 18,
+    marginTop: 3,
   },
 });
