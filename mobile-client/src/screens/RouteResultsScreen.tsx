@@ -127,7 +127,7 @@ export default function RouteResultsScreen() {
       const orderedTimeline =
         fromIndex <= toIndex
           ? timeline.slice(fromIndex, toIndex + 1)
-          : timeline.slice(toIndex, fromIndex + 1).reverse();
+          : timeline;
 
       setSelectedTripTimeline(orderedTimeline);
       navigation.navigate('TripTimeline');

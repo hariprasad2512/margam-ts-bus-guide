@@ -136,8 +136,6 @@ export default function SearchScreen() {
         const routes = await db.getAllAsync<RouteResult>(getRoutesBetweenStops, [
           originId,
           destinationId,
-          destinationId,
-          originId,
         ]);
         return routes;
       };

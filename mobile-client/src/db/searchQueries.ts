@@ -90,17 +90,15 @@ export const searchStopsQuery = `
   LIMIT 8;
 `;
 
-// The FROM/TO Routing Query
+// The FROM/TO Routing Query: only trips where the origin stop comes
+// before the destination stop in sequence order (no reverse fabrication).
 export const getRoutesBetweenStops = `
   SELECT DISTINCT r.route_short_name, t.trip_id
   FROM routes r
   JOIN trips t ON r.route_id = t.route_id
   JOIN stop_times st1 ON t.trip_id = st1.trip_id
   JOIN stop_times st2 ON t.trip_id = st2.trip_id
-  WHERE (
-    (st1.stop_id = ? AND st2.stop_id = ?)
-    OR
-    (st1.stop_id = ? AND st2.stop_id = ?)
-  )
-  AND st1.stop_sequence <> st2.stop_sequence;
+  WHERE st1.stop_id = ?
+    AND st2.stop_id = ?
+    AND st1.stop_sequence < st2.stop_sequence;
 `;
