@@ -60,6 +60,8 @@ export default function RouteResultsScreen() {
         const [hours, minutes] = value.split(':').map(Number);
         const safeHours = Number.isFinite(hours) ? hours : 0;
         const safeMinutes = Number.isFinite(minutes) ? minutes : 0;
+        // GTFS times can exceed 24h (e.g. 25:30 = 01:30 next day). Keep raw
+        // minutes for ordering; callers normalize for display/comparison.
         return safeHours * 60 + safeMinutes;
       };
 
@@ -72,7 +74,12 @@ export default function RouteResultsScreen() {
           );
 
           const arrivalMinutes = parseTimeToMinutes(matchingStop?.arrival_time ?? null);
-          const isFuture = arrivalMinutes !== null && arrivalMinutes >= nowMinutes;
+          // Normalize >24h times into today's clock for the upcoming check,
+          // so e.g. 25:30 counts as 01:30. Show all buses sorted; past ones
+          // render dimmed instead of vanishing after the last bus of the day.
+          const clockMinutes =
+            arrivalMinutes !== null ? ((arrivalMinutes % 1440) + 1440) % 1440 : null;
+          const isFuture = clockMinutes !== null && clockMinutes >= nowMinutes;
 
           return {
             ...route,
@@ -84,7 +91,9 @@ export default function RouteResultsScreen() {
         })
       );
 
-      const upcomingCards = cards.filter((card) => card.isFuture);
+      const upcomingCards = cards
+        .slice()
+        .sort((a, b) => (a.arrivalMinutesFromMidnight ?? 0) - (b.arrivalMinutesFromMidnight ?? 0));
 
       if (isMounted) {
         setRouteCards(upcomingCards);
@@ -140,8 +149,9 @@ export default function RouteResultsScreen() {
     if (!value) return '—';
 
     const [hours, minutes] = value.split(':').map(Number);
-    const safeHours = Number.isFinite(hours) ? hours : 0;
+    const rawHours = Number.isFinite(hours) ? hours : 0;
     const safeMinutes = Number.isFinite(minutes) ? minutes : 0;
+    const safeHours = ((rawHours % 24) + 24) % 24;
     const period = safeHours >= 12 ? 'PM' : 'AM';
     const displayHour = safeHours % 12 === 0 ? 12 : safeHours % 12;
     return `${displayHour}:${safeMinutes.toString().padStart(2, '0')} ${period}`;
@@ -177,7 +187,7 @@ export default function RouteResultsScreen() {
           contentContainerStyle={styles.listContainer}
           renderItem={({ item }) => (
           <TouchableOpacity 
-            style={styles.routeCard} 
+            style={[styles.routeCard, !item.isFuture && styles.routeCardPast]} 
             onPress={() => handleSelectTrip(item.trip_id)}
             activeOpacity={0.7}
           >
@@ -226,6 +236,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  routeCardPast: { opacity: 0.55 },
   timeBadge: {
     width: 72,
     height: 72,
