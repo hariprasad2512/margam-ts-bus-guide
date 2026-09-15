@@ -50,3 +50,7 @@ mobile-client/ios/
 .env
 .env.local
 .env.*
+
+# Local build outputs (never commit binaries)
+*.aab
+*.apk
