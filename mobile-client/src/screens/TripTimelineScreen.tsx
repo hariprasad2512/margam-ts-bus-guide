@@ -9,6 +9,16 @@ export default function TripTimelineScreen() {
   const navigation = useNavigation();
   const { selectedTripTimeline } = useSearchStore();
 
+  const formatTime = (value: string | null | undefined) => {
+    if (!value) return '—';
+    const [h, m] = value.split(':').map(Number);
+    const hours = Number.isFinite(h) ? (h % 24 + 24) % 24 : 0;
+    const minutes = Number.isFinite(m) ? m : 0;
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const display = hours % 12 === 0 ? 12 : hours % 12;
+    return `${display}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -22,8 +32,11 @@ export default function TripTimelineScreen() {
 
       <FlatList
         data={selectedTripTimeline}
-        keyExtractor={(item, index) => index.toString()}
+        keyExtractor={(item, index) => `${item.stop_id}-${index}`}
         contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No stops found for this trip.</Text>
+        }
         renderItem={({ item, index }) => {
           const isFirst = index === 0;
           const isLast = index === selectedTripTimeline.length - 1;
@@ -40,6 +53,7 @@ export default function TripTimelineScreen() {
               {/* Stop Information */}
               <View style={styles.stopInfo}>
                 <Text style={styles.stopName}>{item.stop_name}</Text>
+                <Text style={styles.arrivalTime}>{formatTime(item.arrival_time)}</Text>
               </View>
             </View>
           );
@@ -75,4 +89,5 @@ const styles = StyleSheet.create({
   stopInfo: { flex: 1, paddingLeft: 16, paddingBottom: 24, justifyContent: 'center' },
   stopName: { fontSize: 16, fontWeight: '700', color: colors.navy, marginBottom: 4 },
   arrivalTime: { fontSize: 14, color: colors.textMuted },
+  emptyText: { textAlign: 'center', marginTop: 40, fontSize: 15, color: colors.textMuted, fontWeight: '500' },
 });
