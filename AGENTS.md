@@ -25,3 +25,9 @@
 - Runtime DB init (`src/db/database.ts`): copies bundled asset to `${documentDirectory}SQLite/tgsrtc.db` via `expo-file-system/legacy` using tmp-file + `moveAsync`, opens with `openDatabaseAsync(name, undefined, dir)` (name and dir separate — absolute path as name breaks), then `PRAGMA quick_check`. Follow this pattern; init is singleton-guarded against React double-mount.
 - Data layer: SQL lives in `src/db/searchQueries.ts`, global state in `src/store/useSearchStore.ts` (zustand), palette in `src/theme.ts`.
 - OTA/build: `app.json` uses `runtimeVersion: { policy: appVersion }` + `updates.url`; `eas.json` channels are `development`/`preview`/`production`.
+
+## Vision & Golden Rules
+- Margam is a lightweight, offline-first Hyderabad TGSRTC bus guide. In scope: From/To routing, bus-number lookup, stop timelines. Out of scope until v1.1: Stops Near Me map, Airport/Pushpak tab (`expo-location`/`react-native-maps` are installed but unused; no location permission in `app.json`).
+- 100% offline / zero server bills: never suggest a cloud backend, Postgres, or live API. No real-time tracking — all routing is static GTFS in the embedded DB.
+- Data updates ship via EAS OTA replacing the SQLite asset, not via code changes.
+- Snippet-by-snippet: one deliberate fix at a time, one commit per fix. Never rewrite whole files at once.
