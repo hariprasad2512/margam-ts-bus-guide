@@ -1,20 +1,43 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, Linking, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, Linking, Pressable, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import { colors } from '../theme';
 
 export default function AboutScreen() {
-  const openSource = (url: string) => Linking.openURL(url);
+  const navigation = useNavigation();
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+
+  const openSource = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        Alert.alert('Cannot open link', url);
+        return;
+      }
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Cannot open link', url);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View style={styles.topHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.topHeaderTitle}>About</Text>
+        <View style={{ width: 50 }} />
+      </View>
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <Image source={require('../../assets/icon.png')} style={styles.logo} />
           <Text style={styles.headerTitle}>Maargam</Text>
           <Text style={styles.tagline}>Your route. Made simple.</Text>
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+          <Text style={styles.versionText}>Version {appVersion}</Text>
         </View>
 
         {/* Mission Statement */}
@@ -53,6 +76,15 @@ export default function AboutScreen() {
               While every effort is made to ensure accuracy, the developer assumes no responsibility for delays, route changes, or discrepancies in the transit schedules.
             </Text>
           </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.disclaimerBlock}>
+            <Text style={styles.disclaimerHeading}>Icon Credits</Text>
+            <Text style={styles.bodyText}>
+              Tab bar icons from Flaticon (flaticon.com): home icon and airplane icon by Freepik.
+            </Text>
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -89,6 +121,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.canvas,
   },
+  topHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  backButton: { padding: 8 },
+  backText: { fontSize: 16, color: colors.primary, fontWeight: '700' },
+  topHeaderTitle: { fontSize: 18, fontWeight: '800', color: colors.navy },
   container: {
     paddingHorizontal: 20,
     paddingBottom: 40,
