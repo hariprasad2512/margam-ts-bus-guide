@@ -76,6 +76,15 @@ export default function AboutScreen() {
               While every effort is made to ensure accuracy, the developer assumes no responsibility for delays, route changes, or discrepancies in the transit schedules.
             </Text>
           </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.disclaimerBlock}>
+            <Text style={styles.disclaimerHeading}>Icon Credits</Text>
+            <Text style={styles.bodyText}>
+              Tab bar icons from Flaticon (flaticon.com): home icon and airplane icon by Freepik.
+            </Text>
+          </View>
         </View>
 
         <View style={styles.card}>

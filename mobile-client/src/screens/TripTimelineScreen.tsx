@@ -9,25 +9,20 @@ export default function TripTimelineScreen() {
   const navigation = useNavigation();
   const { selectedTripTimeline } = useSearchStore();
 
-  const formatTime = (value: string | null | undefined) => {
-    if (!value) return '—';
-    const [h, m] = value.split(':').map(Number);
-    const hours = Number.isFinite(h) ? (h % 24 + 24) % 24 : 0;
-    const minutes = Number.isFinite(m) ? m : 0;
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const display = hours % 12 === 0 ? 12 : hours % 12;
-    return `${display}:${minutes.toString().padStart(2, '0')} ${period}`;
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
+          <Text style={styles.backChevron}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Route Timeline</Text>
-        <View style={{ width: 50 }} /> 
+        <View style={styles.headerSpacer} /> 
       </View>
 
       <FlatList
@@ -53,7 +48,6 @@ export default function TripTimelineScreen() {
               {/* Stop Information */}
               <View style={styles.stopInfo}>
                 <Text style={styles.stopName}>{item.stop_name}</Text>
-                <Text style={styles.arrivalTime}>{formatTime(item.arrival_time)}</Text>
               </View>
             </View>
           );
@@ -66,9 +60,14 @@ export default function TripTimelineScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
-  backButton: { padding: 8 },
-  backText: { fontSize: 16, color: colors.primary, fontWeight: '700' },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: colors.navy },
+  backButton: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: colors.primarySoft, borderWidth: 1, borderColor: colors.primaryMuted,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  backChevron: { fontSize: 24, color: colors.primary, fontWeight: '800', marginTop: -2 },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '800', color: colors.navy },
+  headerSpacer: { width: 40 },
   listContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
   nextStopBanner: {
     marginHorizontal: 16,
@@ -87,7 +86,6 @@ const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.surface, borderWidth: 3, borderColor: colors.primary, zIndex: 1 },
   dotEnd: { backgroundColor: colors.primary, width: 16, height: 16, borderRadius: 8 }, // Larger solid dot for start/end
   stopInfo: { flex: 1, paddingLeft: 16, paddingBottom: 24, justifyContent: 'center' },
-  stopName: { fontSize: 16, fontWeight: '700', color: colors.navy, marginBottom: 4 },
-  arrivalTime: { fontSize: 14, color: colors.textMuted },
+  stopName: { fontSize: 16, fontWeight: '700', color: colors.navy },
   emptyText: { textAlign: 'center', marginTop: 40, fontSize: 15, color: colors.textMuted, fontWeight: '500' },
 });

@@ -12,6 +12,16 @@ export interface RouteResult {
   trip_id: string;
 }
 
+// Enriched card shown on the results screen. Times stay internal-only:
+// they drive the upcoming filter + sort, never rendered (static GTFS
+// times are not accurate to the real world).
+export interface RouteCardItem extends RouteResult {
+  originStopName: string;
+  arrivalTimeAtFromStop: string | null;
+  arrivalMinutesFromMidnight: number | null;
+  isFuture: boolean;
+}
+
 // Arrange the Stops according to the stop_sequence
 export interface TimelineStop {
   stop_id: string;
@@ -72,6 +82,82 @@ export const getRepresentativeRouteTrip = `
   LIMIT 1;
 `;
 
+// Airport Pushpak (AC) routes serving RGIA, curated from the offline GTFS.
+// Schedules come from the DB at runtime; no fares in GTFS (v1: schedules only).
+export const PUSHPAK_ROUTE_SHORT_NAMES = [
+  '255',
+  '300/251',
+  '7Z/251A',
+  '92A/251',
+  'AA',
+  'AC',
+  'AJ',
+  'AK',
+  'AL',
+];
+
+export const getRouteByShortName = `
+  SELECT route_id, route_short_name
+  FROM routes
+  WHERE route_short_name = ?
+  LIMIT 1;
+`;
+
+// Stops served by at least one Pushpak route — the curated picker source.
+// Grouped by name: GTFS has direction-specific twin stop_ids sharing one
+// name, and listing each twin produced duplicates (plus dead ends when the
+// wrong twin was picked). One row per name, like the home autocomplete.
+export const getPushpakServedStops = `
+  SELECT MIN(s.stop_id) AS stop_id, s.stop_name
+  FROM stops s
+  JOIN stop_times st ON s.stop_id = st.stop_id
+  JOIN trips t ON st.trip_id = t.trip_id
+  JOIN routes r ON t.route_id = r.route_id
+  WHERE r.route_short_name IN ('255','300/251','7Z/251A','92A/251','AA','AC','AJ','AK','AL')
+  GROUP BY s.stop_name
+  ORDER BY s.stop_name;
+`;
+
+// Pushpak routes going TO RGI Airport from a given stop: the user stop
+// must come before an airport stop in the trip sequence. Matched by stop
+// NAME across all twin stop_ids so any same-name twin resolves.
+export const getPushpakRoutesToAirport = `
+  SELECT r.route_short_name, MIN(t.trip_id) AS trip_id
+  FROM routes r
+  JOIN trips t ON r.route_id = t.route_id
+  JOIN stop_times stUser ON t.trip_id = stUser.trip_id
+  JOIN stops sUser ON stUser.stop_id = sUser.stop_id
+  JOIN stop_times stAir ON t.trip_id = stAir.trip_id
+  JOIN stops sAir ON stAir.stop_id = sAir.stop_id
+  WHERE lower(sUser.stop_name) = lower(?)
+    AND (lower(sAir.stop_name) LIKE '%rgi airport%' OR lower(sAir.stop_name) LIKE '%rgia%')
+    AND r.route_short_name IN ('255','300/251','7Z/251A','92A/251','AA','AC','AJ','AK','AL')
+    AND stUser.stop_sequence < stAir.stop_sequence
+  GROUP BY r.route_short_name
+  ORDER BY r.route_short_name
+  LIMIT 20;
+`;
+
+// Pushpak routes coming FROM RGI Airport to a given stop: the airport
+// stop must come before the user stop in the trip sequence. Matched by
+// stop NAME across all twin stop_ids so any same-name twin resolves.
+export const getPushpakRoutesFromAirport = `
+  SELECT r.route_short_name, MIN(t.trip_id) AS trip_id
+  FROM routes r
+  JOIN trips t ON r.route_id = t.route_id
+  JOIN stop_times stUser ON t.trip_id = stUser.trip_id
+  JOIN stops sUser ON stUser.stop_id = sUser.stop_id
+  JOIN stop_times stAir ON t.trip_id = stAir.trip_id
+  JOIN stops sAir ON stAir.stop_id = sAir.stop_id
+  WHERE lower(sUser.stop_name) = lower(?)
+    AND (lower(sAir.stop_name) LIKE '%rgi airport%' OR lower(sAir.stop_name) LIKE '%rgia%')
+    AND r.route_short_name IN ('255','300/251','7Z/251A','92A/251','AA','AC','AJ','AK','AL')
+    AND stAir.stop_sequence < stUser.stop_sequence
+  GROUP BY r.route_short_name
+  ORDER BY r.route_short_name
+  LIMIT 20;
+`;
+
 export interface StopResult {
   stop_id: string;
   stop_name: string;
@@ -92,13 +178,18 @@ export const searchStopsQuery = `
 
 // The FROM/TO Routing Query: only trips where the origin stop comes
 // before the destination stop in sequence order (no reverse fabrication).
+// One row per bus number (MIN trip as representative) so busy corridors
+// don't return hundreds of trips and overwhelm the native SQLite module.
 export const getRoutesBetweenStops = `
-  SELECT DISTINCT r.route_short_name, t.trip_id
+  SELECT r.route_short_name, MIN(t.trip_id) AS trip_id
   FROM routes r
   JOIN trips t ON r.route_id = t.route_id
   JOIN stop_times st1 ON t.trip_id = st1.trip_id
   JOIN stop_times st2 ON t.trip_id = st2.trip_id
   WHERE st1.stop_id = ?
     AND st2.stop_id = ?
-    AND st1.stop_sequence < st2.stop_sequence;
+    AND st1.stop_sequence < st2.stop_sequence
+  GROUP BY r.route_short_name
+  ORDER BY r.route_short_name
+  LIMIT 50;
 `;

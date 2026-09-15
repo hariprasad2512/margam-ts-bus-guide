@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { SQLiteDatabase } from 'expo-sqlite';
-import { Route, RouteResult, TimelineStop } from '../db/searchQueries'; 
+import { Route, RouteCardItem, RouteResult, TimelineStop } from '../db/searchQueries'; 
 import { searchRoutesByNumber } from '../db/searchQueries';
 
 // Define the shape of our global search state
@@ -11,11 +11,13 @@ interface SearchState {
   fromStop: StopSelection | null;
   toStop: StopSelection | null;
   connectingRoutes: RouteResult[];
+  routeCards: RouteCardItem[];
   selectedTripTimeline: TimelineStop[];
   
   setFromStop: (stop: StopSelection | null) => void;
   setToStop: (stop: StopSelection | null) => void;
   setConnectingRoutes: (routes: RouteResult[]) => void;
+  setRouteCards: (cards: RouteCardItem[]) => void;
   setSelectedTripTimeline: (timeline: TimelineStop[]) => void;
 
 
@@ -41,6 +43,7 @@ export const useSearchStore = create<SearchState>((set) => ({
   fromStop: null,
   toStop: null,
   connectingRoutes: [],
+  routeCards: [],
   selectedTripTimeline: [],
 
   // --- NEW ACTIONS ---
@@ -48,6 +51,7 @@ export const useSearchStore = create<SearchState>((set) => ({
     fromStop: stop,
     // Auto-clear results if the user changes their starting point
     connectingRoutes: [], 
+    routeCards: [],
     selectedTripTimeline: [] 
   }),
   
@@ -55,10 +59,13 @@ export const useSearchStore = create<SearchState>((set) => ({
     toStop: stop,
     // Auto-clear results if the user changes their destination
     connectingRoutes: [], 
+    routeCards: [],
     selectedTripTimeline: [] 
   }),
   
   setConnectingRoutes: (routes) => set({ connectingRoutes: routes }),
+
+  setRouteCards: (cards) => set({ routeCards: cards }),
   
   setSelectedTripTimeline: (timeline) => set({ selectedTripTimeline: timeline }),
 
