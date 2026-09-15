@@ -1,7 +1,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, Text, StyleSheet } from 'react-native';
 import SearchScreen from '../screens/SearchScreen';
 import RouteResultsScreen from '../screens/RouteResultsScreen';
 import TripTimelineScreen from '../screens/TripTimelineScreen';

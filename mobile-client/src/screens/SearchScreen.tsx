@@ -53,15 +53,13 @@ export default function SearchScreen() {
     if (toTimer.current) clearTimeout(toTimer.current);
   }, []);
 
-  // Destructure exact Zustand state (removed timeline getters as they moved to other screens)
+  // Destructure exact Zustand state (timeline lives on other screens)
   const {
     fromStop,
     toStop,
     setFromStop,
     setToStop,
-    connectingRoutes,
     setConnectingRoutes,
-    selectedTripTimeline,
     setSelectedTripTimeline,
     searchTerm,
     results,
@@ -364,7 +362,7 @@ export default function SearchScreen() {
             </View>
 
             {isSearching && (
-              <ActivityIndicator size="small" color="#0066FF" style={{ marginVertical: 10 }} />
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 10 }} />
             )}
           </View>
         }
