@@ -106,7 +106,7 @@ export default function RouteResultsScreen() {
     return () => {
       isMounted = false;
     };
-  }, [db, connectingRoutes, fromStop?.stop_id, fromStop?.stop_name]);
+  }, [db, connectingRoutes, fromStop?.stop_id, fromStop?.stop_name, toStop?.stop_id, toStop?.stop_name]);
 
   const handleSelectTrip = async (tripId: string) => {
     try {
