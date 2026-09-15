@@ -203,7 +203,7 @@ export default function RouteResultsScreen() {
             </View>
           </TouchableOpacity>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>No direct buses found for this route.</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>No direct buses found{fromStop?.stop_name && toStop?.stop_name ? ` from ${fromStop.stop_name} to ${toStop.stop_name}` : ''}.</Text>}
         />
       )}
     </SafeAreaView>

@@ -41,6 +41,7 @@ export default function SearchScreen() {
   const [toSearchText, setToSearchText] = useState('');
   const [fromSuggestions, setFromSuggestions] = useState<StopResult[]>([]);
   const [toSuggestions, setToSuggestions] = useState<StopResult[]>([]);
+  const [routeError, setRouteError] = useState('');
 
   // Destructure exact Zustand state (removed timeline getters as they moved to other screens)
   const {
@@ -123,8 +124,14 @@ export default function SearchScreen() {
 
   // --- Execute Multi-Stop Route Search & Navigate ---
   const handleCheckBuses = async () => {
+    setRouteError('');
     if (!fromStop?.stop_id || !toStop?.stop_id || !db) {
-      console.warn('Please select valid stops from the dropdown.');
+      setRouteError('Please select valid stops from the dropdown.');
+      return;
+    }
+
+    if (fromStop.stop_id === toStop.stop_id) {
+      setRouteError('From and To stops must be different.');
       return;
     }
 
@@ -177,10 +184,15 @@ export default function SearchScreen() {
       }, []);
 
       console.log(`Found ${uniqueRoutes.length} direct buses!`);
+      if (uniqueRoutes.length === 0) {
+        setRouteError(`No direct buses found from ${fromStop.stop_name} to ${toStop.stop_name}.`);
+        return;
+      }
       setConnectingRoutes(uniqueRoutes);
       navigation.navigate('RouteResults');
     } catch (error) {
       console.error('Error finding routes:', error);
+      setRouteError('Something went wrong while finding buses. Please try again.');
     }
   };
 
@@ -304,6 +316,9 @@ export default function SearchScreen() {
               >
                 <Text style={styles.buttonText}>Find buses</Text>
               </TouchableOpacity>
+              {routeError.length > 0 && (
+                <Text style={styles.errorText}>{routeError}</Text>
+              )}
             </View>
 
             <View style={styles.divider} />
@@ -389,6 +404,7 @@ const styles = StyleSheet.create({
   buttonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 8 },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 15, color: colors.textMuted, fontWeight: '500' },
+  errorText: { textAlign: 'center', marginTop: 10, fontSize: 14, color: '#B3261E', fontWeight: '600' },
   aboutLink: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7, paddingVertical: 15, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
   aboutLinkText: { color: colors.primary, fontWeight: '800', fontSize: 14 },
   aboutArrow: { color: colors.primary, fontWeight: '800', fontSize: 18 },
