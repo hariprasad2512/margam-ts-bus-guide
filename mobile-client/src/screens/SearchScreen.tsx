@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   View, 
@@ -42,6 +42,16 @@ export default function SearchScreen() {
   const [fromSuggestions, setFromSuggestions] = useState<StopResult[]>([]);
   const [toSuggestions, setToSuggestions] = useState<StopResult[]>([]);
   const [routeError, setRouteError] = useState('');
+  // Debounce + stale-response guards for the auto-suggest dropdowns.
+  const fromTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fromRequestId = useRef(0);
+  const toRequestId = useRef(0);
+
+  useEffect(() => () => {
+    if (fromTimer.current) clearTimeout(fromTimer.current);
+    if (toTimer.current) clearTimeout(toTimer.current);
+  }, []);
 
   // Destructure exact Zustand state (removed timeline getters as they moved to other screens)
   const {
@@ -71,20 +81,26 @@ export default function SearchScreen() {
   }, []);
 
   // --- Auto-Suggest Logic for "From" Stop ---
-  const handleFromChange = async (text: string) => {
+  const handleFromChange = (text: string) => {
     setFromSearchText(text);
     if (fromStop) setFromStop(null);
-    
-    if (text.trim().length > 1 && db) {
+    if (routeError) setRouteError('');
+
+    if (fromTimer.current) clearTimeout(fromTimer.current);
+    if (text.trim().length < 2 || !db) {
+      setFromSuggestions([]);
+      return;
+    }
+    const queryText = text;
+    fromTimer.current = setTimeout(async () => {
+      const requestId = ++fromRequestId.current;
       try {
-        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [`%${text}%`, text]);
-        setFromSuggestions(res);
+        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [`%${queryText}%`, queryText]);
+        if (requestId === fromRequestId.current) setFromSuggestions(res);
       } catch (e) {
         console.error(e);
       }
-    } else {
-      setFromSuggestions([]);
-    }
+    }, 200);
   };
 
   const handleSelectFrom = (stop: StopResult) => {
@@ -94,20 +110,26 @@ export default function SearchScreen() {
   };
 
   // --- Auto-Suggest Logic for "To" Stop ---
-  const handleToChange = async (text: string) => {
+  const handleToChange = (text: string) => {
     setToSearchText(text);
     if (toStop) setToStop(null);
-    
-    if (text.trim().length > 1 && db) {
+    if (routeError) setRouteError('');
+
+    if (toTimer.current) clearTimeout(toTimer.current);
+    if (text.trim().length < 2 || !db) {
+      setToSuggestions([]);
+      return;
+    }
+    const queryText = text;
+    toTimer.current = setTimeout(async () => {
+      const requestId = ++toRequestId.current;
       try {
-        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [`%${text}%`, text]);
-        setToSuggestions(res);
+        const res = await db.getAllAsync<StopResult>(searchStopsQuery, [`%${queryText}%`, queryText]);
+        if (requestId === toRequestId.current) setToSuggestions(res);
       } catch (e) {
         console.error(e);
       }
-    } else {
-      setToSuggestions([]);
-    }
+    }, 200);
   };
 
   const handleSelectTo = (stop: StopResult) => {
@@ -151,11 +173,11 @@ export default function SearchScreen() {
 
       if (routes.length === 0) {
         const fromCandidates = await db.getAllAsync<{ stop_id: string }>(
-          'SELECT stop_id FROM stops WHERE stop_name = ? ORDER BY stop_id',
+          'SELECT stop_id FROM stops WHERE stop_name = ? ORDER BY stop_id LIMIT 25',
           [fromStop.stop_name]
         );
         const toCandidates = await db.getAllAsync<{ stop_id: string }>(
-          'SELECT stop_id FROM stops WHERE stop_name = ? ORDER BY stop_id',
+          'SELECT stop_id FROM stops WHERE stop_name = ? ORDER BY stop_id LIMIT 25',
           [toStop.stop_name]
         );
 
