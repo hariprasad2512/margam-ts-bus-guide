@@ -100,7 +100,7 @@ export default function SearchScreen() {
             useNativeDriver: true,
           }).start();
         });
-      }, 1100);
+      }, 2600);
     } else {
       parent?.setOptions({
         tabBarStyle: {
@@ -132,6 +132,8 @@ export default function SearchScreen() {
     setConnectingRoutes,
     setRouteCards,
     setSelectedTripTimeline,
+    setSelectedFullTimeline,
+    setSelectedTripMeta,
     searchTerm,
     results,
     isSearching,
@@ -371,6 +373,10 @@ export default function SearchScreen() {
 
       const timeline = await db.getAllAsync<TimelineStop>(getTripTimeline, [selectedTrip.trip_id]);
       setSelectedTripTimeline(timeline ?? []);
+      setSelectedFullTimeline(timeline ?? []);
+      // Bus-number lookup has no From/To segment: full route only,
+      // so the Timeline hides the entire-route toggle.
+      setSelectedTripMeta({ tripId: selectedTrip.trip_id, routeShortName: route.route_short_name, fromIndex: null, toIndex: null });
       navigation.navigate('TripTimeline');
     } catch (error) {
       console.error('Failed to load route timeline:', error);

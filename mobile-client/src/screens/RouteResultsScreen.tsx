@@ -18,7 +18,7 @@ export default function RouteResultsScreen() {
   
   // Cards arrive pre-enriched from the home screen (under its spinner),
   // so this screen renders instantly with no loader or blank state.
-  const { fromStop, toStop, connectingRoutes, routeCards, setSelectedTripTimeline } = useSearchStore();
+  const { fromStop, toStop, connectingRoutes, routeCards, setSelectedTripTimeline, setSelectedFullTimeline, setSelectedTripMeta } = useSearchStore();
 
   useEffect(() => {
     setShowAll(false);
@@ -27,13 +27,15 @@ export default function RouteResultsScreen() {
   const upcomingOnlyCards = routeCards.filter((card) => card.isFuture);
   const visibleCards = showAll ? routeCards : upcomingOnlyCards;
 
-  const handleSelectTrip = async (tripId: string) => {
+  const handleSelectTrip = async (tripId: string, routeShortName: string) => {
     try {
       const db = await initDatabase();
       const timeline = await db.getAllAsync<TimelineStop>(getTripTimeline, [tripId]);
 
       if (!timeline || !timeline.length || !fromStop?.stop_id || !toStop?.stop_id) {
         setSelectedTripTimeline([]);
+        setSelectedFullTimeline([]);
+        setSelectedTripMeta(null);
         navigation.navigate('TripTimeline');
         return;
       }
@@ -49,6 +51,8 @@ export default function RouteResultsScreen() {
       if (fromIndex < 0 || toIndex < 0) {
         console.warn('Selected route does not contain both chosen stops. Showing full route timeline.');
         setSelectedTripTimeline(timeline);
+        setSelectedFullTimeline(timeline);
+        setSelectedTripMeta({ tripId, routeShortName, fromIndex: null, toIndex: null });
         navigation.navigate('TripTimeline');
         return;
       }
@@ -59,6 +63,14 @@ export default function RouteResultsScreen() {
           : timeline;
 
       setSelectedTripTimeline(orderedTimeline);
+      setSelectedFullTimeline(timeline);
+      // Reversed direction falls back to the full timeline with no
+      // segment, so the Timeline hides the entire-route toggle.
+      setSelectedTripMeta(
+        fromIndex <= toIndex
+          ? { tripId, routeShortName, fromIndex, toIndex }
+          : { tripId, routeShortName, fromIndex: null, toIndex: null }
+      );
       navigation.navigate('TripTimeline');
     } catch (error) {
       console.error('Error fetching trip timeline:', error);
@@ -108,7 +120,7 @@ export default function RouteResultsScreen() {
         renderItem={({ item }) => (
         <TouchableOpacity 
           style={styles.routeCard} 
-          onPress={() => handleSelectTrip(item.trip_id)}
+          onPress={() => handleSelectTrip(item.trip_id, item.route_short_name)}
           activeOpacity={0.7}
         >
           <View style={styles.routeInfo}>
