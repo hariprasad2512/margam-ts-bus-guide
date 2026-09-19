@@ -3,6 +3,18 @@ import { SQLiteDatabase } from 'expo-sqlite';
 import { Route, RouteCardItem, RouteResult, TimelineStop } from '../db/searchQueries'; 
 import { searchRoutesByNumber } from '../db/searchQueries';
 
+// Meta describing the trip shown on the Timeline screen. When
+// fromIndex/toIndex are set, the Timeline can toggle between the
+// user's From→To segment and the entire route (segment rows stay
+// highlighted, outside rows render dimmed). Null segment = full
+// route only (bus-number lookup, Pushpak) → toggle hidden.
+export interface SelectedTripMeta {
+  tripId: string;
+  routeShortName: string;
+  fromIndex: number | null;
+  toIndex: number | null;
+}
+
 // Define the shape of our global search state
 interface SearchState {
   // ==========================================
@@ -13,12 +25,16 @@ interface SearchState {
   connectingRoutes: RouteResult[];
   routeCards: RouteCardItem[];
   selectedTripTimeline: TimelineStop[];
+  selectedFullTimeline: TimelineStop[];
+  selectedTripMeta: SelectedTripMeta | null;
   
   setFromStop: (stop: StopSelection | null) => void;
   setToStop: (stop: StopSelection | null) => void;
   setConnectingRoutes: (routes: RouteResult[]) => void;
   setRouteCards: (cards: RouteCardItem[]) => void;
   setSelectedTripTimeline: (timeline: TimelineStop[]) => void;
+  setSelectedFullTimeline: (timeline: TimelineStop[]) => void;
+  setSelectedTripMeta: (meta: SelectedTripMeta | null) => void;
 
 
   searchTerm: string;
@@ -45,6 +61,8 @@ export const useSearchStore = create<SearchState>((set) => ({
   connectingRoutes: [],
   routeCards: [],
   selectedTripTimeline: [],
+  selectedFullTimeline: [],
+  selectedTripMeta: null,
 
   // --- NEW ACTIONS ---
   setFromStop: (stop) => set({ 
@@ -52,7 +70,9 @@ export const useSearchStore = create<SearchState>((set) => ({
     // Auto-clear results if the user changes their starting point
     connectingRoutes: [], 
     routeCards: [],
-    selectedTripTimeline: [] 
+    selectedTripTimeline: [],
+    selectedFullTimeline: [],
+    selectedTripMeta: null,
   }),
   
   setToStop: (stop) => set({ 
@@ -60,7 +80,9 @@ export const useSearchStore = create<SearchState>((set) => ({
     // Auto-clear results if the user changes their destination
     connectingRoutes: [], 
     routeCards: [],
-    selectedTripTimeline: [] 
+    selectedTripTimeline: [],
+    selectedFullTimeline: [],
+    selectedTripMeta: null,
   }),
   
   setConnectingRoutes: (routes) => set({ connectingRoutes: routes }),
@@ -68,6 +90,10 @@ export const useSearchStore = create<SearchState>((set) => ({
   setRouteCards: (cards) => set({ routeCards: cards }),
   
   setSelectedTripTimeline: (timeline) => set({ selectedTripTimeline: timeline }),
+
+  setSelectedFullTimeline: (timeline) => set({ selectedFullTimeline: timeline }),
+
+  setSelectedTripMeta: (meta) => set({ selectedTripMeta: meta }),
 
 
   searchTerm: '',

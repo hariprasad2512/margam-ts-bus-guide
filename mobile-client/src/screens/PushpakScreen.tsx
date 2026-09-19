@@ -33,7 +33,7 @@ export default function PushpakScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState('');
-  const { setSelectedTripTimeline } = useSearchStore();
+  const { setSelectedTripTimeline, setSelectedFullTimeline, setSelectedTripMeta } = useSearchStore();
 
   useEffect(() => {
     let isMounted = true;
@@ -104,6 +104,10 @@ export default function PushpakScreen() {
       const db = await initDatabase();
       const timeline = await db.getAllAsync<TimelineStop>(getTripTimeline, [route.trip_id]);
       setSelectedTripTimeline(timeline ?? []);
+      setSelectedFullTimeline(timeline ?? []);
+      // Pushpak has no stop_id-anchored From/To segment: full route
+      // only, so the Timeline hides the entire-route toggle.
+      setSelectedTripMeta({ tripId: route.trip_id, routeShortName: route.route_short_name, fromIndex: null, toIndex: null });
       navigation.navigate('TripTimeline');
     } catch (e) {
       console.error('Failed to load Pushpak timeline:', e);
