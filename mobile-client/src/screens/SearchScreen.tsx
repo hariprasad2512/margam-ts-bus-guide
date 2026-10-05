@@ -15,6 +15,8 @@ import {
   Platform,
 } from 'react-native';
 import { SQLiteDatabase } from 'expo-sqlite';
+import * as Location from 'expo-location';
+import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -29,7 +31,8 @@ import {
   getTripTimeline,
   getRepresentativeRouteTrip,
   searchStopsQuery,
-  StopResult 
+  StopResult,
+  getNearestStops
 } from '../db/searchQueries';
 import { initDatabase } from '../db/database';
 import { colors } from '../theme';
@@ -54,6 +57,7 @@ export default function SearchScreen() {
   const [fromSuggestions, setFromSuggestions] = useState<StopResult[]>([]);
   const [toSuggestions, setToSuggestions] = useState<StopResult[]>([]);
   const [routeError, setRouteError] = useState('');
+  const [isLocating, setIsLocating] = useState(false);
   const [isFindingBuses, setIsFindingBuses] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -223,6 +227,39 @@ export default function SearchScreen() {
   const handleBusNumberChange = (text: string) => {
     setSearchTerm(text);
     if (db) executeSearch(db, text);
+  };
+
+  // --- Locate icon: auto-fill FROM with the nearest stop ---
+  const handleUseMyLocation = async () => {
+    if (!db || isLocating) return;
+    setRouteError('');
+    setIsLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setRouteError('Location permission denied. Allow location access to find nearby stops.');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const stops = await getNearestStops(
+        db,
+        position.coords.latitude,
+        position.coords.longitude,
+        1
+      );
+      if (stops.length === 0) {
+        setRouteError('No nearby stops found.');
+        return;
+      }
+      handleSelectFrom(stops[0]);
+    } catch (error) {
+      console.error('Failed to get nearby stops:', error);
+      setRouteError('Could not get your location. Please try again.');
+    } finally {
+      setIsLocating(false);
+    }
   };
 
   // --- Execute Multi-Stop Route Search & Navigate ---
@@ -431,7 +468,24 @@ export default function SearchScreen() {
 
               {/* From Input */}
               <View style={styles.journeyLeg}>
-                <Text style={styles.journeyLegLabel}>FROM</Text>
+                <View style={styles.journeyLegHeader}>
+                  <Text style={styles.journeyLegLabel}>FROM</Text>
+                  <TouchableOpacity
+                    style={styles.locateIcon}
+                    onPress={handleUseMyLocation}
+                    activeOpacity={0.7}
+                    disabled={isLocating}
+                    accessibilityLabel="Use my current location as From"
+                    accessibilityRole="button"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    {isLocating ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <FontAwesome name="crosshairs" size={18} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                </View>
                 <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.journeyInput}
@@ -622,6 +676,15 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   journeyLegLabel: { fontSize: 10, fontWeight: '800', color: colors.primary, letterSpacing: 0.7, marginBottom: 2 },
+  journeyLegHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: 2,
+  },
+  locateIcon: {
+    width: 32, height: 32, borderRadius: 16,
+    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: colors.primarySoft,
+  },
   journeyInput: {
     height: 44, fontSize: 17, fontWeight: '700', color: colors.ink, paddingHorizontal: 2,
   },

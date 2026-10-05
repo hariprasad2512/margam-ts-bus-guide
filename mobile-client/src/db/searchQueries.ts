@@ -193,3 +193,60 @@ export const getRoutesBetweenStops = `
   ORDER BY r.route_short_name
   LIMIT 50;
 `;
+
+// Nearest stops (offline, no maps SDK): coarse squared-degree ordering in
+// SQLite, then precise Haversine in JS. Keeps the query cheap and the
+// distances accurate without any network or API key.
+export interface NearestStop extends StopResult {
+  stop_lat: number;
+  stop_lon: number;
+  distanceM: number;
+}
+
+export const getNearestStopCandidatesQuery = `
+  SELECT stop_id, stop_name, stop_lat, stop_lon
+  FROM stops
+  WHERE stop_lat IS NOT NULL AND stop_lon IS NOT NULL
+  ORDER BY ((stop_lat - ?) * (stop_lat - ?) + (stop_lon - ?) * (stop_lon - ?))
+  LIMIT 50;
+`;
+
+export const haversineMeters = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const earthM = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return 2 * earthM * Math.asin(Math.sqrt(a));
+};
+
+export const getNearestStops = async (
+  db: SQLiteDatabase,
+  latitude: number,
+  longitude: number,
+  limit = 8
+): Promise<NearestStop[]> => {
+  try {
+    const candidates = await db.getAllAsync<
+      StopResult & { stop_lat: number; stop_lon: number }
+    >(getNearestStopCandidatesQuery, [latitude, latitude, longitude, longitude]);
+    return candidates
+      .map((stop) => ({
+        ...stop,
+        distanceM: haversineMeters(latitude, longitude, stop.stop_lat, stop.stop_lon),
+      }))
+      .sort((a, b) => a.distanceM - b.distanceM)
+      .slice(0, limit);
+  } catch (error) {
+    console.error('Nearest stops query failed:', error);
+    return [];
+  }
+};
