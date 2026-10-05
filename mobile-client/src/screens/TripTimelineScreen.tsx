@@ -1,8 +1,9 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
+import { FontAwesome } from '@expo/vector-icons';
 import { useSearchStore } from '../store/useSearchStore';
 import { TimelineStop, haversineMeters } from '../db/searchQueries';
 import { colors } from '../theme';
@@ -103,6 +104,19 @@ export default function TripTimelineScreen() {
     setShowFullRoute((prev) => !prev);
   };
 
+  // Walking link for the nearest stop only: no origin, so Google uses
+  // the device location and shows both the walking route and the pin.
+  const openNearestInMaps = () => {
+    if (!nearest) return;
+    const url =
+      'https://www.google.com/maps/dir/?api=1' +
+      `&destination=${nearest.stop.stop_lat},${nearest.stop.stop_lon}` +
+      '&travelmode=walking';
+    Linking.openURL(url).catch((error) =>
+      console.error('Failed to open Google Maps:', error)
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -121,9 +135,21 @@ export default function TripTimelineScreen() {
 
       {nearest && (
         <View style={styles.nextStopBanner}>
-          <Text style={styles.nextStopLabel}>● Nearest stop to you</Text>
-          <Text style={styles.nextStopValue}>{nearest.stop.stop_name}</Text>
-          <Text style={styles.nextStopSubtitle}>{formatDistance(nearest.distanceM)} away</Text>
+          <View style={styles.nextStopText}>
+            <Text style={styles.nextStopLabel}>● Nearest stop to you</Text>
+            <Text style={styles.nextStopValue}>{nearest.stop.stop_name}</Text>
+            <Text style={styles.nextStopSubtitle}>{formatDistance(nearest.distanceM)} away</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.mapPin}
+            onPress={openNearestInMaps}
+            activeOpacity={0.7}
+            accessibilityLabel={`Open ${nearest.stop.stop_name} in Google Maps`}
+            accessibilityRole="button"
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <FontAwesome name="map-marker" size={24} color={colors.primary} />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -225,7 +251,10 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     backgroundColor: colors.primarySoft,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
+  nextStopText: { flex: 1 },
   nextStopLabel: { fontSize: 12, color: colors.primary, fontWeight: '700', textTransform: 'uppercase' },
   nextStopValue: { fontSize: 20, fontWeight: '700', color: colors.navy, marginTop: 4 },
   nextStopSubtitle: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
@@ -244,6 +273,7 @@ const styles = StyleSheet.create({
   stopName: { fontSize: 16, fontWeight: '700', color: colors.navy },
   stopNameDimmed: { color: colors.textMuted, fontWeight: '600' },
   stopNameNearest: { color: colors.primary },
+  mapPin: { justifyContent: 'center', alignItems: 'center', paddingLeft: 8, alignSelf: 'center' },
   badgeBoard: {
     marginTop: 4, alignSelf: 'flex-start', fontSize: 11, fontWeight: '800',
     color: colors.success, backgroundColor: '#E6F6EC',
