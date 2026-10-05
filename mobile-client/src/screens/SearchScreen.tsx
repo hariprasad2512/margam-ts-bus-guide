@@ -15,6 +15,8 @@ import {
   Platform,
 } from 'react-native';
 import { SQLiteDatabase } from 'expo-sqlite';
+import * as Location from 'expo-location';
+import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -29,7 +31,8 @@ import {
   getTripTimeline,
   getRepresentativeRouteTrip,
   searchStopsQuery,
-  StopResult 
+  StopResult,
+  getNearestStops
 } from '../db/searchQueries';
 import { initDatabase } from '../db/database';
 import { colors } from '../theme';
@@ -54,6 +57,7 @@ export default function SearchScreen() {
   const [fromSuggestions, setFromSuggestions] = useState<StopResult[]>([]);
   const [toSuggestions, setToSuggestions] = useState<StopResult[]>([]);
   const [routeError, setRouteError] = useState('');
+  const [isLocating, setIsLocating] = useState(false);
   const [isFindingBuses, setIsFindingBuses] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -64,6 +68,10 @@ export default function SearchScreen() {
   const toTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fromRequestId = useRef(0);
   const toRequestId = useRef(0);
+  const listRef = useRef<FlatList<Route> | null>(null);
+  const busFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const quickSearchY = useRef(0);
+  const toInputRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
     const parent = navigation.getParent();
@@ -121,6 +129,7 @@ export default function SearchScreen() {
   useEffect(() => () => {
     if (fromTimer.current) clearTimeout(fromTimer.current);
     if (toTimer.current) clearTimeout(toTimer.current);
+    if (busFocusTimer.current) clearTimeout(busFocusTimer.current);
   }, []);
 
   // Destructure exact Zustand state (timeline lives on other screens)
@@ -150,6 +159,26 @@ export default function SearchScreen() {
       .catch((error) => console.error('Failed to init DB:', error));
     return () => { isMounted = false; };
   }, []);
+
+  // Pin the Quick Search card to the top while the bus-number field is
+  // focused (results flow below it, above the keyboard); restore the
+  // normal position when the keyboard is dismissed.
+  // Note: quickSearchY is measured relative to topSection, whose
+  // paddingTop (20) cancels the 20px top margin, so it is used as-is.
+  const handleBusNumberFocus = () => {
+    if (busFocusTimer.current) clearTimeout(busFocusTimer.current);
+    busFocusTimer.current = setTimeout(() => {
+      listRef.current?.scrollToOffset({
+        offset: Math.max(0, quickSearchY.current),
+        animated: true,
+      });
+    }, 350);
+  };
+
+  const handleBusNumberBlur = () => {
+    if (busFocusTimer.current) clearTimeout(busFocusTimer.current);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
 
   // --- Auto-Suggest Logic for "From" Stop ---
   const handleFromChange = (text: string) => {
@@ -223,6 +252,41 @@ export default function SearchScreen() {
   const handleBusNumberChange = (text: string) => {
     setSearchTerm(text);
     if (db) executeSearch(db, text);
+  };
+
+  // --- Locate icon: auto-fill FROM with the nearest stop ---
+  const handleUseMyLocation = async () => {
+    if (!db || isLocating) return;
+    setRouteError('');
+    setIsLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setRouteError('Location permission denied. Allow location access to find nearby stops.');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const stops = await getNearestStops(
+        db,
+        position.coords.latitude,
+        position.coords.longitude,
+        1
+      );
+      if (stops.length === 0) {
+        setRouteError('No nearby stops found.');
+        return;
+      }
+      handleSelectFrom(stops[0]);
+      // Hand off to TO: focus opens the keyboard ready to type.
+      toInputRef.current?.focus();
+    } catch (error) {
+      console.error('Failed to get nearby stops:', error);
+      setRouteError('Could not get your location. Please try again.');
+    } finally {
+      setIsLocating(false);
+    }
   };
 
   // --- Execute Multi-Stop Route Search & Navigate ---
@@ -413,12 +477,16 @@ export default function SearchScreen() {
         keyboardVerticalOffset={80}
       >
       <FlatList
+        ref={listRef}
         data={results}
         keyExtractor={(item) => item.route_id.toString()}
         renderItem={renderRouteItem}
         contentContainerStyle={styles.listContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        onScrollToIndexFailed={() => {
+          listRef.current?.scrollToEnd({ animated: true });
+        }}
         ListHeaderComponent={
           <View style={styles.topSection}>
             
@@ -431,7 +499,24 @@ export default function SearchScreen() {
 
               {/* From Input */}
               <View style={styles.journeyLeg}>
-                <Text style={styles.journeyLegLabel}>FROM</Text>
+                <View style={styles.journeyLegHeader}>
+                  <Text style={styles.journeyLegLabel}>FROM</Text>
+                  <TouchableOpacity
+                    style={styles.locateIcon}
+                    onPress={handleUseMyLocation}
+                    activeOpacity={0.7}
+                    disabled={isLocating}
+                    accessibilityLabel="Use my current location as From"
+                    accessibilityRole="button"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    {isLocating ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <FontAwesome name="crosshairs" size={18} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                </View>
                 <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.journeyInput}
@@ -474,6 +559,7 @@ export default function SearchScreen() {
                 <Text style={styles.journeyLegLabel}>TO</Text>
                 <View style={[styles.inputWrapper]}>
                 <TextInput
+                  ref={toInputRef}
                   style={styles.journeyInput}
                   placeholder="e.g. Lingampally"
                   placeholderTextColor={colors.textMuted}
@@ -515,7 +601,12 @@ export default function SearchScreen() {
             <View style={styles.divider} />
 
             {/* 2. Secondary: Search Route by Number */}
-            <View style={styles.card}>
+            <View
+              style={styles.card}
+              onLayout={(event) => {
+                quickSearchY.current = event.nativeEvent.layout.y;
+              }}
+            >
               <View style={styles.sectionHeading}>
                 <Text style={styles.cardTitle}>Know your bus number?</Text>
                 <Text style={styles.sectionEyebrow}>QUICK SEARCH</Text>
@@ -526,6 +617,8 @@ export default function SearchScreen() {
                 placeholderTextColor={colors.textMuted}
                 value={searchTerm}
                 onChangeText={handleBusNumberChange}
+                onFocus={handleBusNumberFocus}
+                onBlur={handleBusNumberBlur}
                 autoCorrect={false}
                 autoCapitalize="characters"
                 clearButtonMode="while-editing"
@@ -622,6 +715,15 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   journeyLegLabel: { fontSize: 10, fontWeight: '800', color: colors.primary, letterSpacing: 0.7, marginBottom: 2 },
+  journeyLegHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: 2,
+  },
+  locateIcon: {
+    width: 32, height: 32, borderRadius: 16,
+    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: colors.primarySoft,
+  },
   journeyInput: {
     height: 44, fontSize: 17, fontWeight: '700', color: colors.ink, paddingHorizontal: 2,
   },

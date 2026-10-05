@@ -1,15 +1,23 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import * as Location from 'expo-location';
+import { FontAwesome } from '@expo/vector-icons';
 import { useSearchStore } from '../store/useSearchStore';
-import { TimelineStop } from '../db/searchQueries';
+import { TimelineStop, haversineMeters } from '../db/searchQueries';
 import { colors } from '../theme';
+
+const formatDistance = (meters: number): string => {
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  return `${(meters / 1000).toFixed(1)} km`;
+};
 
 export default function TripTimelineScreen() {
   const navigation = useNavigation();
   const { selectedTripTimeline, selectedFullTimeline, selectedTripMeta } = useSearchStore();
   const [showFullRoute, setShowFullRoute] = useState(false);
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const listRef = useRef<FlatList<TimelineStop> | null>(null);
 
   // The toggle only exists for From/To flows where we know the
@@ -24,6 +32,59 @@ export default function TripTimelineScreen() {
   const toIndex = selectedTripMeta?.toIndex ?? 0;
   const showingFull = showFullRoute && hasSegment;
   const displayList = showingFull ? selectedFullTimeline : selectedTripTimeline;
+
+  // Live GPS dot: watch only while this screen is focused (foreground
+  // only, ~25m updates). Silent when permission is denied — the static
+  // timeline keeps working as before.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      let subscription: Location.LocationSubscription | null = null;
+      (async () => {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (!active || status !== 'granted') return;
+          subscription = await Location.watchPositionAsync(
+            { accuracy: Location.Accuracy.Balanced, distanceInterval: 25 },
+            (location) => {
+              if (active) {
+                setUserCoords({
+                  latitude: location.coords.latitude,
+                  longitude: location.coords.longitude,
+                });
+              }
+            }
+          );
+        } catch (error) {
+          console.error('Failed to watch position:', error);
+        }
+      })();
+      return () => {
+        active = false;
+        subscription?.remove();
+        subscription = null;
+      };
+    }, [])
+  );
+
+  const nearest = useMemo(() => {
+    if (!userCoords || displayList.length === 0) return null;
+    let bestIndex = 0;
+    let bestDist = Number.POSITIVE_INFINITY;
+    displayList.forEach((stop, index) => {
+      const dist = haversineMeters(
+        userCoords.latitude,
+        userCoords.longitude,
+        stop.stop_lat,
+        stop.stop_lon
+      );
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIndex = index;
+      }
+    });
+    return { index: bestIndex, stop: displayList[bestIndex], distanceM: bestDist };
+  }, [userCoords, displayList]);
 
   const scrollToBoardingStop = () => {
     // Let the full list render first, then jump to the boarding stop
@@ -43,6 +104,19 @@ export default function TripTimelineScreen() {
     setShowFullRoute((prev) => !prev);
   };
 
+  // Walking link for the nearest stop only: no origin, so Google uses
+  // the device location and shows both the walking route and the pin.
+  const openNearestInMaps = () => {
+    if (!nearest) return;
+    const url =
+      'https://www.google.com/maps/dir/?api=1' +
+      `&destination=${nearest.stop.stop_lat},${nearest.stop.stop_lon}` +
+      '&travelmode=walking';
+    Linking.openURL(url).catch((error) =>
+      console.error('Failed to open Google Maps:', error)
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -58,6 +132,26 @@ export default function TripTimelineScreen() {
         <Text style={styles.headerTitle}>Route Timeline</Text>
         <View style={styles.headerSpacer} /> 
       </View>
+
+      {nearest && (
+        <View style={styles.nextStopBanner}>
+          <View style={styles.nextStopText}>
+            <Text style={styles.nextStopLabel}>● Nearest stop to you</Text>
+            <Text style={styles.nextStopValue}>{nearest.stop.stop_name}</Text>
+            <Text style={styles.nextStopSubtitle}>{formatDistance(nearest.distanceM)} away</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.mapPin}
+            onPress={openNearestInMaps}
+            activeOpacity={0.7}
+            accessibilityLabel={`Open ${nearest.stop.stop_name} in Google Maps`}
+            accessibilityRole="button"
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <FontAwesome name="map-marker" size={24} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <FlatList
         ref={listRef}
@@ -107,19 +201,20 @@ export default function TripTimelineScreen() {
           const isDimmed = showingFull && (index < fromIndex || index > toIndex);
           const isBoarding = showingFull && index === fromIndex;
           const isAlighting = showingFull && index === toIndex;
+          const isNearest = nearest?.index === index;
           
           return (
             <View style={[styles.timelineRow, isDimmed && styles.timelineRowDimmed]}>
               {/* Vertical Line & Dot */}
               <View style={styles.timelineGraphic}>
                 {!isFirst && <View style={[styles.lineTop, isDimmed && styles.lineDimmed]} />}
-                <View style={[styles.dot, (isFirst || isLast) && styles.dotEnd, isDimmed && styles.dotDimmed, (isBoarding || isAlighting) && styles.dotHighlight]} />
+                <View style={[styles.dot, (isFirst || isLast) && styles.dotEnd, isDimmed && styles.dotDimmed, (isBoarding || isAlighting) && styles.dotHighlight, isNearest && styles.dotNearest]} />
                 {!isLast && <View style={[styles.lineBottom, isDimmed && styles.lineDimmed]} />}
               </View>
 
               {/* Stop Information */}
               <View style={styles.stopInfo}>
-                <Text style={[styles.stopName, isDimmed && styles.stopNameDimmed]}>{item.stop_name}</Text>
+                <Text style={[styles.stopName, isDimmed && styles.stopNameDimmed, isNearest && styles.stopNameNearest]}>{item.stop_name}</Text>
                 {isBoarding && <Text style={styles.badgeBoard}>Board here</Text>}
                 {isAlighting && !isBoarding && <Text style={styles.badgeAlight}>Get down here</Text>}
               </View>
@@ -156,7 +251,10 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     backgroundColor: colors.primarySoft,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
+  nextStopText: { flex: 1 },
   nextStopLabel: { fontSize: 12, color: colors.primary, fontWeight: '700', textTransform: 'uppercase' },
   nextStopValue: { fontSize: 20, fontWeight: '700', color: colors.navy, marginTop: 4 },
   nextStopSubtitle: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
@@ -170,9 +268,12 @@ const styles = StyleSheet.create({
   dotEnd: { backgroundColor: colors.primary, width: 16, height: 16, borderRadius: 8 }, // Larger solid dot for start/end
   dotDimmed: { borderColor: '#9AA5B1', backgroundColor: colors.surface },
   dotHighlight: { borderColor: colors.success, backgroundColor: colors.success },
+  dotNearest: { borderColor: colors.primary, backgroundColor: colors.primary },
   stopInfo: { flex: 1, paddingLeft: 16, paddingBottom: 24, justifyContent: 'center' },
   stopName: { fontSize: 16, fontWeight: '700', color: colors.navy },
   stopNameDimmed: { color: colors.textMuted, fontWeight: '600' },
+  stopNameNearest: { color: colors.primary },
+  mapPin: { justifyContent: 'center', alignItems: 'center', paddingLeft: 8, alignSelf: 'center' },
   badgeBoard: {
     marginTop: 4, alignSelf: 'flex-start', fontSize: 11, fontWeight: '800',
     color: colors.success, backgroundColor: '#E6F6EC',

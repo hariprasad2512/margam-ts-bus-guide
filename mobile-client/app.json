@@ -40,6 +40,12 @@
           "imageWidth": 240,
           "resizeMode": "contain"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Maargam to use your location to find nearby bus stops."
+        }
       ]
     ],
     "extra": {

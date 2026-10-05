@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -20,9 +20,40 @@ export default function RouteResultsScreen() {
   // so this screen renders instantly with no loader or blank state.
   const { fromStop, toStop, connectingRoutes, routeCards, setSelectedTripTimeline, setSelectedFullTimeline, setSelectedTripMeta } = useSearchStore();
 
+  // Coordinates for the keyless Google Maps deep link (offline DB lookup).
+  const [fromCoords, setFromCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [toCoords, setToCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+
   useEffect(() => {
     setShowAll(false);
   }, [connectingRoutes, routeCards, fromStop?.stop_id, toStop?.stop_id]);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const db = await initDatabase();
+        const fetchCoords = async (stopId?: string) => {
+          if (!stopId) return null;
+          return await db.getFirstAsync<{ latitude: number; longitude: number }>(
+            'SELECT stop_lat AS latitude, stop_lon AS longitude FROM stops WHERE stop_id = ? LIMIT 1',
+            [stopId]
+          );
+        };
+        const [from, to] = await Promise.all([
+          fetchCoords(fromStop?.stop_id),
+          fetchCoords(toStop?.stop_id),
+        ]);
+        if (isMounted) {
+          setFromCoords(from ?? null);
+          setToCoords(to ?? null);
+        }
+      } catch (error) {
+        console.error('Failed to load stop coordinates:', error);
+      }
+    })();
+    return () => { isMounted = false; };
+  }, [fromStop?.stop_id, toStop?.stop_id]);
 
   const upcomingOnlyCards = routeCards.filter((card) => card.isFuture);
   const visibleCards = showAll ? routeCards : upcomingOnlyCards;
@@ -77,6 +108,20 @@ export default function RouteResultsScreen() {
     }
   };
 
+  // Keyless universal link: opens the Maps app if installed, else the
+  // browser. No API key, no billing; needs internet only when tapped.
+  const openInGoogleMaps = () => {
+    if (!fromCoords || !toCoords) return;
+    const url =
+      'https://www.google.com/maps/dir/?api=1' +
+      `&origin=${fromCoords.latitude},${fromCoords.longitude}` +
+      `&destination=${toCoords.latitude},${toCoords.longitude}` +
+      '&travelmode=transit';
+    Linking.openURL(url).catch((error) =>
+      console.error('Failed to open Google Maps:', error)
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       
@@ -100,6 +145,19 @@ export default function RouteResultsScreen() {
         <Text style={styles.contextValue}>{toStop?.stop_name}</Text>
       </View>
 
+      {fromCoords && toCoords && (
+        <View style={styles.mapsRow}>
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={openInGoogleMaps}
+            activeOpacity={0.7}
+            accessibilityLabel="Open directions in Google Maps"
+            accessibilityRole="button"
+          >
+            <Text style={styles.toggleButtonText}>Open in Google Maps ↗</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       {routeCards.length > 0 && (
         <View style={styles.toggleRow}>
           <TouchableOpacity
@@ -187,6 +245,7 @@ const styles = StyleSheet.create({
   routeHint: { fontSize: 13, color: colors.textMuted, marginTop: 4, fontWeight: '600' },
   cardChevron: { fontSize: 24, color: colors.primary, fontWeight: '800', marginLeft: 8 },
   toggleRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, marginBottom: 10 },
+  mapsRow: { alignItems: 'center', marginBottom: 10 },
   toggleButton: {
     backgroundColor: colors.surface, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14,
     borderWidth: 1, borderColor: colors.primaryMuted, alignSelf: 'center',
