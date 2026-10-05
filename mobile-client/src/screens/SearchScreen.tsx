@@ -71,6 +71,7 @@ export default function SearchScreen() {
   const listRef = useRef<FlatList<Route> | null>(null);
   const busFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const quickSearchY = useRef(0);
+  const toInputRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
     const parent = navigation.getParent();
@@ -278,6 +279,8 @@ export default function SearchScreen() {
         return;
       }
       handleSelectFrom(stops[0]);
+      // Hand off to TO: focus opens the keyboard ready to type.
+      toInputRef.current?.focus();
     } catch (error) {
       console.error('Failed to get nearby stops:', error);
       setRouteError('Could not get your location. Please try again.');
@@ -556,6 +559,7 @@ export default function SearchScreen() {
                 <Text style={styles.journeyLegLabel}>TO</Text>
                 <View style={[styles.inputWrapper]}>
                 <TextInput
+                  ref={toInputRef}
                   style={styles.journeyInput}
                   placeholder="e.g. Lingampally"
                   placeholderTextColor={colors.textMuted}
