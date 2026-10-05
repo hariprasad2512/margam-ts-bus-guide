@@ -68,6 +68,9 @@ export default function SearchScreen() {
   const toTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fromRequestId = useRef(0);
   const toRequestId = useRef(0);
+  const listRef = useRef<FlatList<Route> | null>(null);
+  const busFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const quickSearchY = useRef(0);
 
   useEffect(() => {
     const parent = navigation.getParent();
@@ -125,6 +128,7 @@ export default function SearchScreen() {
   useEffect(() => () => {
     if (fromTimer.current) clearTimeout(fromTimer.current);
     if (toTimer.current) clearTimeout(toTimer.current);
+    if (busFocusTimer.current) clearTimeout(busFocusTimer.current);
   }, []);
 
   // Destructure exact Zustand state (timeline lives on other screens)
@@ -154,6 +158,26 @@ export default function SearchScreen() {
       .catch((error) => console.error('Failed to init DB:', error));
     return () => { isMounted = false; };
   }, []);
+
+  // Pin the Quick Search card to the top while the bus-number field is
+  // focused (results flow below it, above the keyboard); restore the
+  // normal position when the keyboard is dismissed.
+  // Note: quickSearchY is measured relative to topSection, whose
+  // paddingTop (20) cancels the 20px top margin, so it is used as-is.
+  const handleBusNumberFocus = () => {
+    if (busFocusTimer.current) clearTimeout(busFocusTimer.current);
+    busFocusTimer.current = setTimeout(() => {
+      listRef.current?.scrollToOffset({
+        offset: Math.max(0, quickSearchY.current),
+        animated: true,
+      });
+    }, 350);
+  };
+
+  const handleBusNumberBlur = () => {
+    if (busFocusTimer.current) clearTimeout(busFocusTimer.current);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  };
 
   // --- Auto-Suggest Logic for "From" Stop ---
   const handleFromChange = (text: string) => {
@@ -450,12 +474,16 @@ export default function SearchScreen() {
         keyboardVerticalOffset={80}
       >
       <FlatList
+        ref={listRef}
         data={results}
         keyExtractor={(item) => item.route_id.toString()}
         renderItem={renderRouteItem}
         contentContainerStyle={styles.listContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        onScrollToIndexFailed={() => {
+          listRef.current?.scrollToEnd({ animated: true });
+        }}
         ListHeaderComponent={
           <View style={styles.topSection}>
             
@@ -569,7 +597,12 @@ export default function SearchScreen() {
             <View style={styles.divider} />
 
             {/* 2. Secondary: Search Route by Number */}
-            <View style={styles.card}>
+            <View
+              style={styles.card}
+              onLayout={(event) => {
+                quickSearchY.current = event.nativeEvent.layout.y;
+              }}
+            >
               <View style={styles.sectionHeading}>
                 <Text style={styles.cardTitle}>Know your bus number?</Text>
                 <Text style={styles.sectionEyebrow}>QUICK SEARCH</Text>
@@ -580,6 +613,8 @@ export default function SearchScreen() {
                 placeholderTextColor={colors.textMuted}
                 value={searchTerm}
                 onChangeText={handleBusNumberChange}
+                onFocus={handleBusNumberFocus}
+                onBlur={handleBusNumberBlur}
                 autoCorrect={false}
                 autoCapitalize="characters"
                 clearButtonMode="while-editing"
