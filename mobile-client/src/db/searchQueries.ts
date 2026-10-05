@@ -26,6 +26,8 @@ export interface RouteCardItem extends RouteResult {
 export interface TimelineStop {
   stop_id: string;
   stop_name: string;
+  stop_lat: number;
+  stop_lon: number;
   arrival_time: string;
   stop_sequence: number;
 }
@@ -67,7 +69,7 @@ export const searchRoutesByNumber = async (db: SQLiteDatabase, searchTerm: strin
 
 // 3. The Timeline Query for a specific trip
 export const getTripTimeline = `
-  SELECT st.stop_id, s.stop_name, st.arrival_time, st.stop_sequence
+  SELECT st.stop_id, s.stop_name, s.stop_lat, s.stop_lon, st.arrival_time, st.stop_sequence
   FROM stop_times st
   JOIN stops s ON st.stop_id = s.stop_id
   WHERE st.trip_id = ?
