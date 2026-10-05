@@ -46,7 +46,8 @@
         {
           "locationWhenInUsePermission": "Allow Maargam to use your location to find nearby bus stops."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {
