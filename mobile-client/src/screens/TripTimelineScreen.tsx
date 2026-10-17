@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -85,6 +85,22 @@ export default function TripTimelineScreen() {
     });
     return { index: bestIndex, stop: displayList[bestIndex], distanceM: bestDist };
   }, [userCoords, displayList]);
+
+  // Bring the nearest stop into view once per open; later GPS ticks only
+  // refresh distance/banner text and must not yank the list around.
+  const hasScrolledToNearest = useRef(false);
+  useEffect(() => {
+    if (!nearest || hasScrolledToNearest.current) return;
+    hasScrolledToNearest.current = true;
+    setTimeout(() => {
+      try {
+        listRef.current?.scrollToIndex({ index: nearest.index, animated: true, viewPosition: 0.3 });
+      } catch {
+        // scrollToIndex can throw before layout: fall back to top.
+        listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }
+    }, 100);
+  }, [nearest]);
 
   const scrollToBoardingStop = () => {
     // Let the full list render first, then jump to the boarding stop
