@@ -8,7 +8,7 @@ import RouteResultsScreen from '../screens/RouteResultsScreen';
 import TripTimelineScreen from '../screens/TripTimelineScreen';
 import AboutScreen from '../screens/AboutScreen';
 import PushpakScreen from '../screens/PushpakScreen';
-import { colors } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 // Home stack: search flow (type kept compatible with existing screens)
 export type RootStackParamList = {
@@ -65,6 +65,7 @@ function PushpakStackNavigator() {
 }
 
 export default function AppNavigator() {
+  const { colors } = useTheme();
   return (
     <NavigationContainer>
       <Tab.Navigator
@@ -114,7 +115,7 @@ export default function AppNavigator() {
           options={{
             tabBarLabel: 'Home',
             tabBarIcon: ({ color, focused }) => (
-              <View style={[styles.iconPill, focused && styles.iconPillActive]}>
+              <View style={[styles.iconPill, focused && { backgroundColor: colors.primarySoft }]}>
                 <Image
                   source={require('../../assets/tab-home.png')}
                   style={[styles.tabIcon, { tintColor: color }]}
@@ -129,7 +130,7 @@ export default function AppNavigator() {
           options={{
             tabBarLabel: 'Pushpak',
             tabBarIcon: ({ color, focused }) => (
-              <View style={[styles.iconPill, focused && styles.iconPillActive]}>
+              <View style={[styles.iconPill, focused && { backgroundColor: colors.primarySoft }]}>
                 <Image
                   source={require('../../assets/tab-flight.png')}
                   style={[styles.tabIcon, { tintColor: color }]}
@@ -150,9 +151,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  iconPillActive: {
-    backgroundColor: colors.primarySoft,
   },
   tabIcon: {
     width: 24,

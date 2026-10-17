@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,7 +15,8 @@ import {
   TimelineStop,
 } from '../db/searchQueries';
 import { initDatabase } from '../db/database';
-import { colors } from '../theme';
+import { Palette } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 type NavigationProp = NativeStackNavigationProp<PushpakStackParamList, 'Pushpak'>;
 type Direction = 'to' | 'from';
@@ -24,6 +25,8 @@ const AIRPORT_LABEL = 'RGI Airport';
 
 export default function PushpakScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [direction, setDirection] = useState<Direction>('to');
   const [servedStops, setServedStops] = useState<StopResult[]>([]);
   const [stopsLoading, setStopsLoading] = useState(true);
@@ -193,7 +196,7 @@ export default function PushpakScreen() {
           disabled={!selectedStop || isSearching}
         >
           {isSearching ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={colors.onPrimary} />
           ) : (
             <Text style={styles.buttonText}>Find Pushpak buses</Text>
           )}
@@ -241,7 +244,7 @@ export default function PushpakScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   header: { paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, alignItems: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '800', color: colors.navy },
@@ -261,7 +264,7 @@ const styles = StyleSheet.create({
   inputLabel: { fontSize: 10, fontWeight: '800', color: colors.primary, letterSpacing: 0.7, marginBottom: 6 },
   inputWrapper: { zIndex: 1 },
   input: {
-    backgroundColor: '#F8FBFF', height: 52, borderRadius: 13, paddingHorizontal: 16,
+    backgroundColor: colors.inputBg, height: 52, borderRadius: 13, paddingHorizontal: 16,
     fontSize: 15, fontWeight: '600', color: colors.ink, borderWidth: 1, borderColor: colors.border,
   },
   suggestionsContainer: {
@@ -277,9 +280,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary, borderRadius: 13, height: 52, justifyContent: 'center',
     alignItems: 'center', marginTop: 14,
   },
-  buttonDisabled: { backgroundColor: '#98BCEB' },
-  buttonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
-  errorText: { textAlign: 'center', marginTop: 10, fontSize: 14, color: '#B3261E', fontWeight: '600' },
+  buttonDisabled: { backgroundColor: colors.buttonDisabled },
+  buttonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
+  errorText: { textAlign: 'center', marginTop: 10, fontSize: 14, color: colors.error, fontWeight: '600' },
   listContainer: { paddingHorizontal: 16, paddingBottom: 20, paddingTop: 8 },
   routeCard: {
     flexDirection: 'row',

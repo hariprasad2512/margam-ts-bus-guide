@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   Animated,
@@ -20,7 +20,6 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import LocationCrosshairIcon from '../components/LocationCrosshairIcon';
-
 import { useSearchStore } from '../store/useSearchStore';
 import { 
   Route, 
@@ -35,7 +34,8 @@ import {
   getNearestStops
 } from '../db/searchQueries';
 import { initDatabase } from '../db/database';
-import { colors } from '../theme';
+import { Palette } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 // Type our navigation prop
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Search'>;
@@ -49,6 +49,8 @@ const HAPPY_JOURNEY_MESSAGE = 'Happy Journey…';
 
 export default function SearchScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
 
   // Local state for the Auto-Suggest Dropdowns
@@ -539,7 +541,7 @@ export default function SearchScreen() {
                     {isLocating ? (
                       <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
-                      <LocationCrosshairIcon size={18} />
+                      <LocationCrosshairIcon size={18} tint={colors.primary} />
                     )}
                   </TouchableOpacity>
                 </View>
@@ -687,7 +689,7 @@ export default function SearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   header: {
     paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16,
@@ -710,7 +712,7 @@ const styles = StyleSheet.create({
   sectionEyebrow: { fontSize: 10, fontWeight: '800', color: colors.primary, letterSpacing: 0.7 },
   inputWrapper: { zIndex: 1 }, 
   input: {
-    backgroundColor: '#F8FBFF', height: 52, borderRadius: 13, paddingHorizontal: 16,
+    backgroundColor: colors.inputBg, height: 52, borderRadius: 13, paddingHorizontal: 16,
     fontSize: 15, fontWeight: '600', color: colors.ink, borderWidth: 1, borderColor: colors.border,
   },
   suggestionsContainer: {
@@ -737,7 +739,7 @@ const styles = StyleSheet.create({
   routeNumberChevron: { fontSize: 24, color: colors.primary, fontWeight: '800', marginLeft: 8 },
   journeyCard: { position: 'relative' },
   journeyLeg: {
-    backgroundColor: '#F8FBFF', borderRadius: 13, paddingVertical: 10, paddingHorizontal: 14,
+    backgroundColor: colors.inputBg, borderRadius: 13, paddingVertical: 10, paddingHorizontal: 14,
     borderWidth: 1, borderColor: colors.border,
   },
   journeyLegLabel: { fontSize: 10, fontWeight: '800', color: colors.primary, letterSpacing: 0.7, marginBottom: 2 },
@@ -765,11 +767,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary, borderRadius: 13, height: 52, justifyContent: 'center',
     alignItems: 'center', marginTop: 14, shadowColor: colors.primary, shadowOpacity: 0.22, shadowRadius: 8, elevation: 3,
   },
-  buttonDisabled: { backgroundColor: '#98BCEB', shadowOpacity: 0 },
-  buttonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  buttonDisabled: { backgroundColor: colors.buttonDisabled, shadowOpacity: 0 },
+  buttonText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 8 },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 15, color: colors.textMuted, fontWeight: '500' },
-  errorText: { textAlign: 'center', marginTop: 10, fontSize: 14, color: '#B3261E', fontWeight: '600' },
+  errorText: { textAlign: 'center', marginTop: 10, fontSize: 14, color: colors.error, fontWeight: '600' },
   aboutLink: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7, paddingVertical: 15, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
   aboutLinkText: { color: colors.primary, fontWeight: '800', fontSize: 14 },
   aboutArrow: { color: colors.primary, fontWeight: '800', fontSize: 18 },
@@ -779,7 +781,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(16,42,82,0.35)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,

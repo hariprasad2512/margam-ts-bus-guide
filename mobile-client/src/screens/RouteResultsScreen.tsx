@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,13 +8,15 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { useSearchStore } from '../store/useSearchStore';
 import { getTripTimeline, TimelineStop } from '../db/searchQueries';
 import { initDatabase } from '../db/database';
-import { colors } from '../theme';
+import { Palette } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RouteResults'>;
 
 export default function RouteResultsScreen() {
   const navigation = useNavigation<NavigationProp>();
-  
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   // Cards arrive pre-enriched from the home screen (under its spinner),
   // so this screen renders instantly with no loader or blank state.
   const { fromStop, toStop, routeCards, setSelectedTripTimeline, setSelectedFullTimeline, setSelectedTripMeta } = useSearchStore();
@@ -178,7 +180,7 @@ export default function RouteResultsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   backButton: {
