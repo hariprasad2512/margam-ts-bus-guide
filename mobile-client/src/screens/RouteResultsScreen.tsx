@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,25 +8,22 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { useSearchStore } from '../store/useSearchStore';
 import { getTripTimeline, TimelineStop } from '../db/searchQueries';
 import { initDatabase } from '../db/database';
-import { colors } from '../theme';
+import { Palette } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RouteResults'>;
 
 export default function RouteResultsScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [showAll, setShowAll] = useState(false);
-  
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   // Cards arrive pre-enriched from the home screen (under its spinner),
   // so this screen renders instantly with no loader or blank state.
-  const { fromStop, toStop, connectingRoutes, routeCards, setSelectedTripTimeline, setSelectedFullTimeline, setSelectedTripMeta } = useSearchStore();
+  const { fromStop, toStop, routeCards, setSelectedTripTimeline, setSelectedFullTimeline, setSelectedTripMeta } = useSearchStore();
 
   // Coordinates for the keyless Google Maps deep link (offline DB lookup).
   const [fromCoords, setFromCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [toCoords, setToCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-
-  useEffect(() => {
-    setShowAll(false);
-  }, [connectingRoutes, routeCards, fromStop?.stop_id, toStop?.stop_id]);
 
   useEffect(() => {
     let isMounted = true;
@@ -54,9 +51,6 @@ export default function RouteResultsScreen() {
     })();
     return () => { isMounted = false; };
   }, [fromStop?.stop_id, toStop?.stop_id]);
-
-  const upcomingOnlyCards = routeCards.filter((card) => card.isFuture);
-  const visibleCards = showAll ? routeCards : upcomingOnlyCards;
 
   const handleSelectTrip = async (tripId: string, routeShortName: string) => {
     try {
@@ -158,21 +152,8 @@ export default function RouteResultsScreen() {
           </TouchableOpacity>
         </View>
       )}
-      {routeCards.length > 0 && (
-        <View style={styles.toggleRow}>
-          <TouchableOpacity
-            style={styles.toggleButton}
-            onPress={() => setShowAll((prev) => !prev)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.toggleButtonText}>
-              {showAll ? `Show upcoming only (${upcomingOnlyCards.length})` : `Check all buses (${routeCards.length})`}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
       <FlatList
-        data={visibleCards}
+        data={routeCards}
         keyExtractor={(item) => `${item.trip_id}-${item.route_short_name}`}
         contentContainerStyle={styles.listContainer}
         renderItem={({ item }) => (
@@ -192,23 +173,14 @@ export default function RouteResultsScreen() {
         </TouchableOpacity>
         )}
         ListEmptyComponent={
-          routeCards.length > 0 && !showAll ? (
-            <View style={styles.emptyWrap}>
-              <Text style={styles.emptyText}>No more buses today{fromStop?.stop_name && toStop?.stop_name ? ` from ${fromStop.stop_name} to ${toStop.stop_name}` : ''}.</Text>
-              <TouchableOpacity style={styles.toggleButton} onPress={() => setShowAll(true)} activeOpacity={0.7}>
-                <Text style={styles.toggleButtonText}>Check all buses ({routeCards.length})</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <Text style={styles.emptyText}>No direct buses found{fromStop?.stop_name && toStop?.stop_name ? ` from ${fromStop.stop_name} to ${toStop.stop_name}` : ''}.</Text>
-          )
+          <Text style={styles.emptyText}>No direct buses found{fromStop?.stop_name && toStop?.stop_name ? ` from ${fromStop.stop_name} to ${toStop.stop_name}` : ''}.</Text>
         }
       />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   backButton: {
@@ -244,13 +216,11 @@ const styles = StyleSheet.create({
   routeSubtitle: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
   routeHint: { fontSize: 13, color: colors.textMuted, marginTop: 4, fontWeight: '600' },
   cardChevron: { fontSize: 24, color: colors.primary, fontWeight: '800', marginLeft: 8 },
-  toggleRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, marginBottom: 10 },
   mapsRow: { alignItems: 'center', marginBottom: 10 },
   toggleButton: {
     backgroundColor: colors.surface, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14,
     borderWidth: 1, borderColor: colors.primaryMuted, alignSelf: 'center',
   },
   toggleButtonText: { fontSize: 13, color: colors.primary, fontWeight: '800' },
-  emptyWrap: { alignItems: 'center', gap: 12 },
   emptyText: { textAlign: 'center', marginTop: 40, fontSize: 15, color: colors.textMuted, fontWeight: '500' },
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -6,7 +6,8 @@ import * as Location from 'expo-location';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSearchStore } from '../store/useSearchStore';
 import { TimelineStop, haversineMeters } from '../db/searchQueries';
-import { colors } from '../theme';
+import { Palette } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
 
 const formatDistance = (meters: number): string => {
   if (meters < 1000) return `${Math.round(meters)} m`;
@@ -15,6 +16,8 @@ const formatDistance = (meters: number): string => {
 
 export default function TripTimelineScreen() {
   const navigation = useNavigation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { selectedTripTimeline, selectedFullTimeline, selectedTripMeta } = useSearchStore();
   const [showFullRoute, setShowFullRoute] = useState(false);
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -85,6 +88,22 @@ export default function TripTimelineScreen() {
     });
     return { index: bestIndex, stop: displayList[bestIndex], distanceM: bestDist };
   }, [userCoords, displayList]);
+
+  // Bring the nearest stop into view once per open; later GPS ticks only
+  // refresh distance/banner text and must not yank the list around.
+  const hasScrolledToNearest = useRef(false);
+  useEffect(() => {
+    if (!nearest || hasScrolledToNearest.current) return;
+    hasScrolledToNearest.current = true;
+    setTimeout(() => {
+      try {
+        listRef.current?.scrollToIndex({ index: nearest.index, animated: true, viewPosition: 0.3 });
+      } catch {
+        // scrollToIndex can throw before layout: fall back to top.
+        listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }
+    }, 100);
+  }, [nearest]);
 
   const scrollToBoardingStop = () => {
     // Let the full list render first, then jump to the boarding stop
@@ -226,7 +245,7 @@ export default function TripTimelineScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.canvas },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   backButton: {
@@ -263,10 +282,10 @@ const styles = StyleSheet.create({
   timelineGraphic: { width: 30, alignItems: 'center' },
   lineTop: { flex: 1, width: 2, backgroundColor: colors.primaryMuted },
   lineBottom: { flex: 1, width: 2, backgroundColor: colors.primaryMuted },
-  lineDimmed: { backgroundColor: '#C3CDD9' },
+  lineDimmed: { backgroundColor: colors.lineDimmed },
   dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.surface, borderWidth: 3, borderColor: colors.primary, zIndex: 1 },
   dotEnd: { backgroundColor: colors.primary, width: 16, height: 16, borderRadius: 8 }, // Larger solid dot for start/end
-  dotDimmed: { borderColor: '#9AA5B1', backgroundColor: colors.surface },
+  dotDimmed: { borderColor: colors.dotBorderDim, backgroundColor: colors.surface },
   dotHighlight: { borderColor: colors.success, backgroundColor: colors.success },
   dotNearest: { borderColor: colors.primary, backgroundColor: colors.primary },
   stopInfo: { flex: 1, paddingLeft: 16, paddingBottom: 24, justifyContent: 'center' },
@@ -276,7 +295,7 @@ const styles = StyleSheet.create({
   mapPin: { justifyContent: 'center', alignItems: 'center', paddingLeft: 8, alignSelf: 'center' },
   badgeBoard: {
     marginTop: 4, alignSelf: 'flex-start', fontSize: 11, fontWeight: '800',
-    color: colors.success, backgroundColor: '#E6F6EC',
+    color: colors.success, backgroundColor: colors.badgeBoardBg,
     paddingVertical: 2, paddingHorizontal: 8, borderRadius: 10, overflow: 'hidden',
   },
   badgeAlight: {
