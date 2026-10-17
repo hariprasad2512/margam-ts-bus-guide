@@ -1,20 +1,77 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, Linking, Pressable } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, Linking, Pressable, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../theme';
+import { useNavigation } from '@react-navigation/native';
+import Constants from 'expo-constants';
+import { Palette, ThemeMode } from '../theme';
+import { useTheme } from '../theme/ThemeContext';
+
+const THEME_OPTIONS: { mode: ThemeMode; label: string }[] = [
+  { mode: 'system', label: 'Auto' },
+  { mode: 'light', label: 'Light' },
+  { mode: 'dark', label: 'Dark' },
+];
 
 export default function AboutScreen() {
-  const openSource = (url: string) => Linking.openURL(url);
+  const navigation = useNavigation();
+  const { colors, mode, setMode } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+
+  const openSource = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        Alert.alert('Cannot open link', url);
+        return;
+      }
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Cannot open link', url);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View style={styles.topHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.topHeaderTitle}>About</Text>
+        <View style={{ width: 50 }} />
+      </View>
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <Image source={require('../../assets/icon.png')} style={styles.logo} />
           <Text style={styles.headerTitle}>Maargam</Text>
           <Text style={styles.tagline}>Your route. Made simple.</Text>
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+          <Text style={styles.versionText}>Version {appVersion}</Text>
+        </View>
+
+        {/* Appearance */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Appearance</Text>
+          <View style={styles.themeRow}>
+            {THEME_OPTIONS.map((option) => {
+              const isActive = mode === option.mode;
+              return (
+                <TouchableOpacity
+                  key={option.mode}
+                  style={[styles.themeButton, isActive && styles.themeButtonActive]}
+                  onPress={() => setMode(option.mode)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isActive }}
+                  accessibilityLabel={`Theme: ${option.label}`}
+                >
+                  <Text style={[styles.themeButtonText, isActive && styles.themeButtonTextActive]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         {/* Mission Statement */}
@@ -53,6 +110,15 @@ export default function AboutScreen() {
               While every effort is made to ensure accuracy, the developer assumes no responsibility for delays, route changes, or discrepancies in the transit schedules.
             </Text>
           </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.disclaimerBlock}>
+            <Text style={styles.disclaimerHeading}>Icon Credits</Text>
+            <Text style={styles.bodyText}>
+              Tab bar icons from Flaticon (flaticon.com): home icon and airplane icon by Freepik.
+            </Text>
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -84,11 +150,15 @@ export default function AboutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.canvas,
   },
+  topHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  backButton: { padding: 8 },
+  backText: { fontSize: 16, color: colors.primary, fontWeight: '700' },
+  topHeaderTitle: { fontSize: 18, fontWeight: '800', color: colors.navy },
   container: {
     paddingHorizontal: 20,
     paddingBottom: 40,
@@ -131,6 +201,11 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginBottom: 12,
   },
+  themeRow: { flexDirection: 'row', backgroundColor: colors.primarySoft, borderRadius: 13, padding: 4 },
+  themeButton: { flex: 1, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  themeButtonActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primaryMuted },
+  themeButtonText: { fontSize: 14, fontWeight: '700', color: colors.textMuted },
+  themeButtonTextActive: { color: colors.primary, fontWeight: '800' },
   disclaimerBlock: {
     marginVertical: 8,
   },

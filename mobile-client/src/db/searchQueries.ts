@@ -12,10 +12,21 @@ export interface RouteResult {
   trip_id: string;
 }
 
+// Enriched card shown on the results screen. Times stay internal-only:
+// they drive the sort order only, never rendered (static GTFS times are
+// not accurate to the real world).
+export interface RouteCardItem extends RouteResult {
+  originStopName: string;
+  arrivalTimeAtFromStop: string | null;
+  arrivalMinutesFromMidnight: number | null;
+}
+
 // Arrange the Stops according to the stop_sequence
 export interface TimelineStop {
   stop_id: string;
   stop_name: string;
+  stop_lat: number;
+  stop_lon: number;
   arrival_time: string;
   stop_sequence: number;
 }
@@ -57,7 +68,7 @@ export const searchRoutesByNumber = async (db: SQLiteDatabase, searchTerm: strin
 
 // 3. The Timeline Query for a specific trip
 export const getTripTimeline = `
-  SELECT st.stop_id, s.stop_name, st.arrival_time, st.stop_sequence
+  SELECT st.stop_id, s.stop_name, s.stop_lat, s.stop_lon, st.arrival_time, st.stop_sequence
   FROM stop_times st
   JOIN stops s ON st.stop_id = s.stop_id
   WHERE st.trip_id = ?
@@ -70,6 +81,82 @@ export const getRepresentativeRouteTrip = `
   WHERE route_id = ?
   ORDER BY trip_id
   LIMIT 1;
+`;
+
+// Airport Pushpak (AC) routes serving RGIA, curated from the offline GTFS.
+// Schedules come from the DB at runtime; no fares in GTFS (v1: schedules only).
+export const PUSHPAK_ROUTE_SHORT_NAMES = [
+  '255',
+  '300/251',
+  '7Z/251A',
+  '92A/251',
+  'AA',
+  'AC',
+  'AJ',
+  'AK',
+  'AL',
+];
+
+export const getRouteByShortName = `
+  SELECT route_id, route_short_name
+  FROM routes
+  WHERE route_short_name = ?
+  LIMIT 1;
+`;
+
+// Stops served by at least one Pushpak route — the curated picker source.
+// Grouped by name: GTFS has direction-specific twin stop_ids sharing one
+// name, and listing each twin produced duplicates (plus dead ends when the
+// wrong twin was picked). One row per name, like the home autocomplete.
+export const getPushpakServedStops = `
+  SELECT MIN(s.stop_id) AS stop_id, s.stop_name
+  FROM stops s
+  JOIN stop_times st ON s.stop_id = st.stop_id
+  JOIN trips t ON st.trip_id = t.trip_id
+  JOIN routes r ON t.route_id = r.route_id
+  WHERE r.route_short_name IN ('255','300/251','7Z/251A','92A/251','AA','AC','AJ','AK','AL')
+  GROUP BY s.stop_name
+  ORDER BY s.stop_name;
+`;
+
+// Pushpak routes going TO RGI Airport from a given stop: the user stop
+// must come before an airport stop in the trip sequence. Matched by stop
+// NAME across all twin stop_ids so any same-name twin resolves.
+export const getPushpakRoutesToAirport = `
+  SELECT r.route_short_name, MIN(t.trip_id) AS trip_id
+  FROM routes r
+  JOIN trips t ON r.route_id = t.route_id
+  JOIN stop_times stUser ON t.trip_id = stUser.trip_id
+  JOIN stops sUser ON stUser.stop_id = sUser.stop_id
+  JOIN stop_times stAir ON t.trip_id = stAir.trip_id
+  JOIN stops sAir ON stAir.stop_id = sAir.stop_id
+  WHERE lower(sUser.stop_name) = lower(?)
+    AND (lower(sAir.stop_name) LIKE '%rgi airport%' OR lower(sAir.stop_name) LIKE '%rgia%')
+    AND r.route_short_name IN ('255','300/251','7Z/251A','92A/251','AA','AC','AJ','AK','AL')
+    AND stUser.stop_sequence < stAir.stop_sequence
+  GROUP BY r.route_short_name
+  ORDER BY r.route_short_name
+  LIMIT 20;
+`;
+
+// Pushpak routes coming FROM RGI Airport to a given stop: the airport
+// stop must come before the user stop in the trip sequence. Matched by
+// stop NAME across all twin stop_ids so any same-name twin resolves.
+export const getPushpakRoutesFromAirport = `
+  SELECT r.route_short_name, MIN(t.trip_id) AS trip_id
+  FROM routes r
+  JOIN trips t ON r.route_id = t.route_id
+  JOIN stop_times stUser ON t.trip_id = stUser.trip_id
+  JOIN stops sUser ON stUser.stop_id = sUser.stop_id
+  JOIN stop_times stAir ON t.trip_id = stAir.trip_id
+  JOIN stops sAir ON stAir.stop_id = sAir.stop_id
+  WHERE lower(sUser.stop_name) = lower(?)
+    AND (lower(sAir.stop_name) LIKE '%rgi airport%' OR lower(sAir.stop_name) LIKE '%rgia%')
+    AND r.route_short_name IN ('255','300/251','7Z/251A','92A/251','AA','AC','AJ','AK','AL')
+    AND stAir.stop_sequence < stUser.stop_sequence
+  GROUP BY r.route_short_name
+  ORDER BY r.route_short_name
+  LIMIT 20;
 `;
 
 export interface StopResult {
@@ -90,17 +177,77 @@ export const searchStopsQuery = `
   LIMIT 8;
 `;
 
-// The FROM/TO Routing Query
+// The FROM/TO Routing Query: only trips where the origin stop comes
+// before the destination stop in sequence order (no reverse fabrication).
+// One row per bus number (MIN trip as representative) so busy corridors
+// don't return hundreds of trips and overwhelm the native SQLite module.
 export const getRoutesBetweenStops = `
-  SELECT DISTINCT r.route_short_name, t.trip_id
+  SELECT r.route_short_name, MIN(t.trip_id) AS trip_id
   FROM routes r
   JOIN trips t ON r.route_id = t.route_id
   JOIN stop_times st1 ON t.trip_id = st1.trip_id
   JOIN stop_times st2 ON t.trip_id = st2.trip_id
-  WHERE (
-    (st1.stop_id = ? AND st2.stop_id = ?)
-    OR
-    (st1.stop_id = ? AND st2.stop_id = ?)
-  )
-  AND st1.stop_sequence <> st2.stop_sequence;
+  WHERE st1.stop_id = ?
+    AND st2.stop_id = ?
+    AND st1.stop_sequence < st2.stop_sequence
+  GROUP BY r.route_short_name
+  ORDER BY r.route_short_name
+  LIMIT 50;
 `;
+
+// Nearest stops (offline, no maps SDK): coarse squared-degree ordering in
+// SQLite, then precise Haversine in JS. Keeps the query cheap and the
+// distances accurate without any network or API key.
+export interface NearestStop extends StopResult {
+  stop_lat: number;
+  stop_lon: number;
+  distanceM: number;
+}
+
+export const getNearestStopCandidatesQuery = `
+  SELECT stop_id, stop_name, stop_lat, stop_lon
+  FROM stops
+  WHERE stop_lat IS NOT NULL AND stop_lon IS NOT NULL
+  ORDER BY ((stop_lat - ?) * (stop_lat - ?) + (stop_lon - ?) * (stop_lon - ?))
+  LIMIT 50;
+`;
+
+export const haversineMeters = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const earthM = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return 2 * earthM * Math.asin(Math.sqrt(a));
+};
+
+export const getNearestStops = async (
+  db: SQLiteDatabase,
+  latitude: number,
+  longitude: number,
+  limit = 8
+): Promise<NearestStop[]> => {
+  try {
+    const candidates = await db.getAllAsync<
+      StopResult & { stop_lat: number; stop_lon: number }
+    >(getNearestStopCandidatesQuery, [latitude, latitude, longitude, longitude]);
+    return candidates
+      .map((stop) => ({
+        ...stop,
+        distanceM: haversineMeters(latitude, longitude, stop.stop_lat, stop.stop_lon),
+      }))
+      .sort((a, b) => a.distanceM - b.distanceM)
+      .slice(0, limit);
+  } catch (error) {
+    console.error('Nearest stops query failed:', error);
+    return [];
+  }
+};
