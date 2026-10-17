@@ -16,10 +16,10 @@ import {
 } from 'react-native';
 import { SQLiteDatabase } from 'expo-sqlite';
 import * as Location from 'expo-location';
-import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import LocationCrosshairIcon from '../components/LocationCrosshairIcon';
 
 import { useSearchStore } from '../store/useSearchStore';
 import { 
@@ -506,7 +506,7 @@ export default function SearchScreen() {
                     {isLocating ? (
                       <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
-                      <FontAwesome name="crosshairs" size={18} color={colors.primary} />
+                      <LocationCrosshairIcon size={18} color={colors.primary} />
                     )}
                   </TouchableOpacity>
                 </View>
