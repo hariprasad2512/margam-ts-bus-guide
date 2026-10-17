@@ -539,7 +539,7 @@ export default function SearchScreen() {
                     {isLocating ? (
                       <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
-                      <LocationCrosshairIcon size={18} color={colors.primary} />
+                      <LocationCrosshairIcon size={18} />
                     )}
                   </TouchableOpacity>
                 </View>

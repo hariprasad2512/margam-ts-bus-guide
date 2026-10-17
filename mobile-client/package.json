@@ -21,7 +21,6 @@
     "react-native-maps": "1.27.2",
     "react-native-safe-area-context": "^5.8.0",
     "react-native-screens": "^4.26.2",
-    "react-native-svg": "15.15.4",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
