@@ -209,6 +209,39 @@ export default function SearchScreen() {
     setFromSuggestions([]);
   };
 
+  // Auto-fill FROM with the nearest stop whenever the app opens with an
+  // empty FROM. First launch prompts for location permission; later
+  // launches reuse the saved status. Never focuses TO — auto-fill must
+  // not pop the keyboard (the manual locate button still does).
+  useEffect(() => {
+    if (!db || fromStop) return;
+    let isMounted = true;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (!isMounted || status !== 'granted') return;
+        const position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (!isMounted) return;
+        const stops = await getNearestStops(
+          db,
+          position.coords.latitude,
+          position.coords.longitude,
+          1
+        );
+        // The user may have picked a FROM stop while GPS was running.
+        if (!isMounted || stops.length === 0 || useSearchStore.getState().fromStop) return;
+        handleSelectFrom(stops[0]);
+      } catch (error) {
+        // Quiet by design: auto-fetch must never block or nag on open.
+        console.error('Auto current-location fetch failed:', error);
+      }
+    })();
+    return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db]);
+
   // --- Auto-Suggest Logic for "To" Stop ---
   const handleToChange = (text: string) => {
     setToSearchText(text);
