@@ -483,11 +483,11 @@ export default function SearchScreen() {
         ListHeaderComponent={
           <View style={styles.topSection}>
             
-            {/* 1. Point A to Point B Section */}
+            {/* 1. Find Your Bus (From → To) Section */}
             <View style={[styles.card, styles.journeyCard]}>
               <View style={styles.sectionHeading}>
                 <Text style={styles.cardTitle}>Plan your journey</Text>
-                <Text style={styles.sectionEyebrow}>POINT TO POINT</Text>
+                <Text style={styles.sectionEyebrow}>FIND YOUR BUS</Text>
               </View>
 
               {/* From Input */}
