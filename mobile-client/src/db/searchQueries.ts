@@ -13,13 +13,12 @@ export interface RouteResult {
 }
 
 // Enriched card shown on the results screen. Times stay internal-only:
-// they drive the upcoming filter + sort, never rendered (static GTFS
-// times are not accurate to the real world).
+// they drive the sort order only, never rendered (static GTFS times are
+// not accurate to the real world).
 export interface RouteCardItem extends RouteResult {
   originStopName: string;
   arrivalTimeAtFromStop: string | null;
   arrivalMinutesFromMidnight: number | null;
-  isFuture: boolean;
 }
 
 // Arrange the Stops according to the stop_sequence

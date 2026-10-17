@@ -362,9 +362,6 @@ export default function SearchScreen() {
 
       // Enrich here under the same overlay so the results screen
       // renders instantly with zero blank/loader of its own.
-      const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
-
       const parseTimeToMinutes = (value: string | null) => {
         if (!value) return null;
         const [hours, minutes] = value.split(':').map(Number);
@@ -383,16 +380,12 @@ export default function SearchScreen() {
           );
 
           const arrivalMinutes = parseTimeToMinutes(matchingStop?.arrival_time ?? null);
-          const clockMinutes =
-            arrivalMinutes !== null ? ((arrivalMinutes % 1440) + 1440) % 1440 : null;
-          const isFuture = clockMinutes !== null && clockMinutes >= nowMinutes;
 
           cards.push({
             ...route,
             originStopName: firstStop?.stop_name ?? 'Unknown',
             arrivalTimeAtFromStop: matchingStop?.arrival_time ?? null,
             arrivalMinutesFromMidnight: arrivalMinutes,
-            isFuture,
           });
         } catch (error) {
           console.error('Error enriching route card:', route.route_short_name, error);
